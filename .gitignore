@@ -1,0 +1,9 @@
+/node_modules
+/.pnpm-store
+/.next
+/out
+*.log
+*.tsbuildinfo
+.DS_Store
+.env*
+!.env.example
