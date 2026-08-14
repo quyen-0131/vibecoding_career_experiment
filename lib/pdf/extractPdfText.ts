@@ -1,3 +1,5 @@
+import { reconstructPdfPageText } from "@/lib/pdf/reconstructPdfPageText";
+
 export async function extractPdfText(file: File): Promise<string> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
     throw new Error("Please choose a PDF file.");
@@ -17,10 +19,8 @@ export async function extractPdfText(file: File): Promise<string> {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      const text = content.items
-        .map((item) => ("str" in item ? item.str : ""))
-        .join(" ");
-      pages.push(text);
+      const textItems = content.items.filter((item): item is typeof item & { str: string } => "str" in item);
+      pages.push(reconstructPdfPageText(textItems));
     }
 
     const extractedText = pages.join("\n").trim();
