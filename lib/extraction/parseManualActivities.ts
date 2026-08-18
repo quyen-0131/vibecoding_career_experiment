@@ -27,8 +27,11 @@ export function createManualActivity(label: string, experienceId: string, activi
   return {
     id: activityId,
     canonicalId: definition?.id ?? makeCustomActivityId(cleanLabel),
-    label: cleanLabel,
+    // Keep the exact draft while the user is typing. Trimming here removed a
+    // trailing space on every keystroke, which made entering multiple words
+    // feel impossible. The experience editor trims the label when it is saved.
+    label,
     category: definition?.category ?? "Other",
-    supportingText: cleanLabel,
+    supportingText: label,
   };
 }

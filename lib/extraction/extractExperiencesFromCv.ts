@@ -1,4 +1,4 @@
-import { activityCatalog } from "@/data/activityCatalog";
+import { activityCatalog, makeCustomActivityId } from "@/data/activityCatalog";
 import type { DetectedActivity, DetectedExperience, ExperienceType } from "@/types/prototype";
 
 const month = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
@@ -6,11 +6,14 @@ const dateToken = `(?:(?:${month})\\s+)?(?:19|20)\\d{2}|Present|Current`;
 const dateRangePattern = new RegExp(`^\\s*(${dateToken})(?:\\s*(?:-|–|—|to)\\s*(${dateToken}))?\\s*$`, "i");
 const dateAnywherePattern = new RegExp(`(${dateToken})(?:\\s*(?:-|–|—|to)\\s*(${dateToken}))?\\s*$`, "i");
 const roleWords = /\b(consultant|analyst|intern|co-?op|manager|researcher?|assistant|lead|coordinator|developer|designer|president|director|associate|volunteer|advisor|strategist|specialist|officer|project|administrator|producer|editor|writer|engineer)\b/i;
-const descriptionStart = /^(designed|analysed|analyzed|created|developed|worked|managed|presented|conducted|led|supported|coordinated|delivered|responsible|selected|participated|assisted|collaborated|researched|wrote|built|used)\b/i;
+const bulletPrefixPattern = /^\s*[-*•▪◦‣]\s*/;
+const descriptionStart = /^(?:[-*•▪◦‣]\s*)?(?:achieved|administered|advised|analysed|analyzed|assessed|assisted|audited|built|collaborated|communicated|conducted|coordinated|created|cultivated|delivered|designed|developed|documented|ensured|evaluated|facilitated|guided|handled|hosted|implemented|improved|investigated|led|liaised|maintained|managed|mentored|monitored|organised|organized|oversaw|participated|prepared|presented|processed|produced|promoted|provided|researched|responded|responsible|reviewed|scheduled|selected|supported|tracked|trained|used|verified|worked|wrote|administer(?:s)?|advise(?:s)?|analyse(?:s)?|analyze(?:s)?|assess(?:es)?|assist(?:s)?|communicate(?:s)?|conduct(?:s)?|coordinate(?:s)?|create(?:s)?|deliver(?:s)?|design(?:s)?|develop(?:s)?|document(?:s)?|ensure(?:s)?|evaluate(?:s)?|facilitate(?:s)?|handle(?:s)?|implement(?:s)?|investigate(?:s)?|maintain(?:s)?|manage(?:s)?|prepare(?:s)?|present(?:s)?|process(?:es)?|provide(?:s)?|research(?:es)?|respond(?:s)?|review(?:s)?|schedule(?:s)?|support(?:s)?|track(?:s)?|train(?:s)?|verify|verifies|write(?:s)?|(?:administrative|operational|case|policy|record|records|faculty|student|client|stakeholder|project|programme|program|research|data)\s+(?:support|management|review|coordination|analysis|processing|documentation|communication|administration))\b/i;
 const excludedExperienceWords = /\b(scholarship|award|honou?r|seminar|certification|certificate|course|programme participant|program participant|education|degree|diploma)\b/i;
 const includedSectionPattern = /^(?:professional\s+)?(?:work\s+)?(?:experience|history)|employment|career history|professional background|internships?|projects?|leadership|volunteering|volunteer experience$/i;
 const excludedSectionPattern = /^(?:education|awards?|honou?rs?|scholarships?|certifications?|courses?|seminars?|programmes?|programs?|skills?|summary|profile|publications?|languages?|interests?)$/i;
 const locationWords = /\b(remote|hybrid|on-site|canada|vietnam|singapore|united states|united kingdom|usa|uk|bc|ontario|quebec)\b/i;
+const activitySentenceStart = descriptionStart;
+const activityNounPhrase = /\b(analysis|assessment|communication|coordination|delivery|design|development|documentation|evaluation|implementation|investigation|liaison|management|planning|presentation|processing|research|review|support|training|writing)\b/i;
 
 type HeaderCandidate = {
   index: number;
@@ -36,16 +39,64 @@ function isIncludedSection(section: string) {
   return includedSectionPattern.test(section);
 }
 
+function isExcludedSectionHeading(line: string) {
+  return line.length <= 50 && excludedSectionPattern.test(line);
+}
+
+function findSupportingSentence(text: string, patterns: RegExp[], fallback: string) {
+  const sentences = text
+    .split(/\n|(?<=[.!?])\s+/)
+    .map((sentence) => sentence.replace(bulletPrefixPattern, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return sentences.find((sentence) => patterns.some((pattern) => pattern.test(sentence))) ?? fallback;
+}
+
 export function extractActivitiesFromExperience(text: string, experienceId: string): DetectedActivity[] {
-  return activityCatalog
+  const catalogActivities = activityCatalog
     .filter((definition) => definition.patterns.some((pattern) => pattern.test(text)))
     .map((definition, index) => ({
       id: `${experienceId}-${definition.id}-${index}`,
       canonicalId: definition.id,
       label: definition.label,
       category: definition.category,
-      supportingText: text.match(definition.patterns.find((pattern) => pattern.test(text)) ?? /$^/)?.[0] ?? definition.label,
+      supportingText: findSupportingSentence(text, definition.patterns, definition.label),
     }));
+
+  // Preserve action statements that the temporary catalogue does not yet
+  // understand. This remains evidence from the CV rather than an inferred task.
+  const fallbackActivities = text
+    .split(/\n|(?<=[.!?])\s+/)
+    .map((rawSentence) => ({
+      wasBullet: bulletPrefixPattern.test(rawSentence),
+      sentence: rawSentence.replace(bulletPrefixPattern, "").replace(/\s+/g, " ").trim(),
+    }))
+    .filter(({ sentence }) => sentence.length >= 12 && sentence.length <= 260)
+    .filter(({ sentence, wasBullet }) => (
+      wasBullet
+      || activitySentenceStart.test(sentence)
+      || (
+        activityNounPhrase.test(sentence)
+        && !isSectionHeading(sentence)
+        && !dateRangePattern.test(sentence)
+        && !looksLikeLocation(sentence)
+        && !isValidExperienceTitle(sentence)
+      )
+    ))
+    .filter(({ sentence }) => !activityCatalog.some((definition) => definition.patterns.some((pattern) => pattern.test(sentence))))
+    .slice(0, 8)
+    .map(({ sentence }, index) => {
+      const label = sentence.replace(/[.!?]+$/, "");
+      const canonicalId = makeCustomActivityId(label);
+      return {
+        id: `${experienceId}-${canonicalId}-${index}`,
+        canonicalId,
+        label,
+        category: "Other" as const,
+        supportingText: sentence,
+      };
+    });
+
+  return [...catalogActivities, ...fallbackActivities];
 }
 
 function stripTrailingDate(value: string) {
@@ -62,6 +113,7 @@ export function isValidExperienceTitle(value: string) {
     title.length <= 70 &&
     title.split(/\s+/).length <= 10 &&
     roleWords.test(title) &&
+    !bulletPrefixPattern.test(title) &&
     !descriptionStart.test(title) &&
     !dateRangePattern.test(title) &&
     !excludedExperienceWords.test(title) &&
@@ -90,6 +142,7 @@ function getOrganisationCandidate(value: string) {
     !isSectionHeading(part) &&
     !dateRangePattern.test(part) &&
     !isValidExperienceTitle(part) &&
+    !bulletPrefixPattern.test(part) &&
     !descriptionStart.test(part) &&
     !excludedExperienceWords.test(part) &&
     !looksLikeLocation(part) &&
@@ -129,10 +182,10 @@ function parseSplitHeader(lines: string[], titleIndex: number, section: string):
   const organisation = organisationIndex === undefined ? undefined : getOrganisationCandidate(lines[organisationIndex]);
   if (!organisation && !isIncludedSection(section)) return undefined;
 
-  const dateIndex = [titleIndex, titleIndex + 1, titleIndex + 2, titleIndex - 1]
-    .filter((index) => index >= 0 && index < lines.length)
-    .find((index) => Boolean(lines[index].match(dateAnywherePattern)));
-  const headerIndexes = [titleIndex, organisationIndex, dateIndex].filter((index): index is number => index !== undefined);
+  // Dates are not part of the experience contract and should not extend a
+  // header into nearby content. They can remain in the internal description;
+  // activity extraction already ignores standalone date lines.
+  const headerIndexes = [titleIndex, organisationIndex].filter((index): index is number => index !== undefined);
 
   return {
     index: Math.min(...headerIndexes),
@@ -166,14 +219,18 @@ export function extractExperiencesFromCv(cvText: string): DetectedExperience[] {
   candidates.sort((a, b) => a.index - b.index);
   return candidates.slice(0, 15).map((candidate, candidateIndex) => {
     const nextCandidateIndex = candidates[candidateIndex + 1]?.index ?? lines.length;
-    const nextSectionOffset = lines.slice(candidate.headerEndIndex + 1).findIndex(isSectionHeading);
+    // CV templates often repeat "Work Experience" at the top of a new page.
+    // That included heading should not cut a role off from bullet text that
+    // continues after the page break. Only a genuinely excluded section ends
+    // the current experience before the next detected role begins.
+    const nextSectionOffset = lines.slice(candidate.headerEndIndex + 1).findIndex(isExcludedSectionHeading);
     const nextSectionIndex = nextSectionOffset >= 0 ? candidate.headerEndIndex + 1 + nextSectionOffset : lines.length;
     const nextIndex = Math.min(nextCandidateIndex, nextSectionIndex);
     const description = lines
       .slice(candidate.headerEndIndex + 1, nextIndex)
       .filter((line) => !isSectionHeading(line))
       .slice(0, 8)
-      .join(" ");
+      .join("\n");
     const id = `experience-${candidate.index}-${candidate.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
     return {

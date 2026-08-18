@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { createManualActivity, parsePastedActivities } from "@/lib/extraction/parseManualActivities";
 import type { DetectedExperience, ExperienceType } from "@/types/prototype";
 
-type Props = { experiences: DetectedExperience[]; selectedIds: string[]; onSelectionChange: (ids: string[]) => void; onExperiencesChange: (experiences: DetectedExperience[]) => void; onContinue: () => void; onBack: () => void };
+type Props = { experiences: DetectedExperience[]; selectedIds: string[]; onSelectionChange: (ids: string[]) => void; onExperiencesChange: Dispatch<SetStateAction<DetectedExperience[]>>; onContinue: (experiences: DetectedExperience[]) => void; onBack: () => void };
 
 function activitySummary(experience: DetectedExperience) {
   return experience.activities.filter((activity) => activity.label.trim()).slice(0, 3).map((activity) => activity.label).join(" · ");
@@ -22,7 +22,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
   const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   const toggle = (id: string) => selectedIds.includes(id) ? onSelectionChange(selectedIds.filter((item) => item !== id)) : selectedIds.length < 5 && onSelectionChange([...selectedIds, id]);
-  const update = (id: string, patch: Partial<DetectedExperience>) => onExperiencesChange(experiences.map((experience) => experience.id === id ? { ...experience, ...patch } : experience));
+  const update = (id: string, patch: Partial<DetectedExperience> | ((experience: DetectedExperience) => Partial<DetectedExperience>)) => onExperiencesChange((current) => current.map((experience) => experience.id === id ? { ...experience, ...(typeof patch === "function" ? patch(experience) : patch) } : experience));
   const addExperience = () => {
     const id = `manual-experience-${Date.now()}`;
     const activityId = `${id}-manual-1`;
@@ -30,15 +30,16 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
     setEditingId(id);
     setShowAdd(false);
   };
-  const updateActivity = (experience: DetectedExperience, activityId: string, label: string) => update(experience.id, {
-    activities: experience.activities.map((activity) => activity.id === activityId ? createManualActivity(label, experience.id, activity.id) : activity),
-  });
-  const addActivity = (experience: DetectedExperience) => update(experience.id, {
-    activities: [...experience.activities, createManualActivity("", experience.id, newActivityId(experience.id))],
-  });
-  const removeActivity = (experience: DetectedExperience, activityId: string) => update(experience.id, {
-    activities: experience.activities.filter((activity) => activity.id !== activityId),
-  });
+  const updateActivity = (experience: DetectedExperience, activityId: string, label: string) => update(experience.id, (current) => ({
+    activities: current.activities.map((activity) => activity.id === activityId ? createManualActivity(label, current.id, activity.id) : activity),
+  }));
+  const addActivity = (experience: DetectedExperience) => {
+    const activityId = newActivityId(experience.id);
+    update(experience.id, (current) => ({ activities: [...current.activities, createManualActivity("", current.id, activityId)] }));
+  };
+  const removeActivity = (experience: DetectedExperience, activityId: string) => update(experience.id, (current) => ({
+    activities: current.activities.filter((activity) => activity.id !== activityId),
+  }));
   const addPastedActivities = (experience: DetectedExperience) => {
     const labels = parsePastedActivities(pasteDrafts[experience.id] ?? "");
     if (!labels.length) return;
@@ -54,7 +55,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
     const title = experience.title.trim();
     const activities = experience.activities
       .filter((activity) => activity.label.trim())
-      .map((activity) => createManualActivity(activity.label, experience.id, activity.id));
+      .map((activity) => createManualActivity(activity.label.trim(), experience.id, activity.id));
     if (!title || activities.length === 0) {
       setSaveErrors((current) => ({ ...current, [experience.id]: !title ? "Add a role or project title before saving." : "Add at least one activity before saving." }));
       return;
@@ -80,7 +81,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
           <article className={selected ? "experience-select-card selected" : "experience-select-card"} key={experience.id}>
             <button className="experience-select-main" type="button" aria-pressed={selected} disabled={!selected && selectedIds.length === 5} onClick={() => toggle(experience.id)}>
               <span className="check" aria-hidden="true">{selected ? "✓" : ""}</span>
-              <span className="experience-select-copy"><strong>{experience.title || "Untitled experience"}</strong><span>{experience.organisation || "Organisation not detected"}</span>{summary && <small>{summary}</small>}</span>
+              <span className="experience-select-copy"><strong>{experience.title || "Untitled experience"}</strong><span>{experience.organisation || "Organisation not detected"}</span>{summary ? <small>{summary}</small> : <small className="no-activity-summary">No activities extracted from this CV entry. This does not mean the role is irrelevant — use Correct details to add what you did.</small>}</span>
             </button>
             <button className="edit-details-button" type="button" onClick={() => { setEditingId(editing ? undefined : experience.id); setPastingId(undefined); }}>{editing ? "Close" : "Correct details"}</button>
             {editing && <div className="experience-edit">
@@ -88,8 +89,8 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
               <label>Organisation<input value={experience.organisation ?? ""} placeholder="e.g. Decision Lab" onChange={(event) => update(experience.id, { organisation: event.target.value })} /></label>
               <label>Experience type<select value={experience.type} onChange={(event) => update(experience.id, { type: event.target.value as ExperienceType })}><option value="work">Work</option><option value="internship">Internship</option><option value="project">Project</option><option value="volunteer">Volunteer</option></select></label>
               <section className="manual-activities-editor">
-                <div className="manual-activities-heading"><h3>What did you actually do in this role?</h3><p>Add the main types of work you actually performed. Keep each activity separate — we&apos;ll compare them with your career options later.</p></div>
-                <div className="manual-activity-list">{experience.activities.map((activity, index) => <div className="manual-activity-row" key={activity.id}><label>Activity {index + 1}<input value={activity.label} placeholder="e.g. Analysed customer survey data" onChange={(event) => updateActivity(experience, activity.id, event.target.value)} /></label><button type="button" onClick={() => removeActivity(experience, activity.id)}>Remove</button></div>)}</div>
+                <div className="manual-activities-heading"><h3>What did you actually do in this role?</h3><p>Add the main types of work you actually performed. Keep one sentence for each activity so it can be reviewed separately later.</p></div>
+                <div className="manual-activity-list">{experience.activities.map((activity, index) => <div className="manual-activity-row" key={activity.id}><label>Activity {index + 1}<textarea rows={3} value={activity.label} placeholder="e.g. Analysed customer survey data to identify changes in buying behaviour." onChange={(event) => updateActivity(experience, activity.id, event.target.value)} /></label><button type="button" onClick={() => removeActivity(experience, activity.id)}>Remove</button></div>)}</div>
                 <div className="manual-activity-actions"><button className="text-button" type="button" onClick={() => addActivity(experience)}>+ Add another activity</button><button className="text-button secondary-text-button" type="button" onClick={() => setPastingId(pastingId === experience.id ? undefined : experience.id)}>Paste several activities</button></div>
                 {pastingId === experience.id && <div className="paste-activities"><label>Paste one activity per line<textarea rows={6} value={pasteDrafts[experience.id] ?? ""} placeholder={"Designed quantitative and qualitative research\nAnalysed customer behaviour data\nCreated strategic reports"} onChange={(event) => setPasteDrafts((current) => ({ ...current, [experience.id]: event.target.value }))} /></label><p>Lines, bullet points and semicolon-separated items become separate activities. Commas inside a sentence stay together.</p><button className="button secondary" type="button" disabled={!parsePastedActivities(pasteDrafts[experience.id] ?? "").length} onClick={() => addPastedActivities(experience)}>Add pasted activities</button></div>}
               </section>
@@ -101,7 +102,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
       })}</div>
       <div className="manual-experience-action"><button className="text-button" type="button" onClick={() => setShowAdd(!showAdd)}>+ Add a missing experience</button>{showAdd && <div className="manual-add-prompt"><p>Add one experience, then list each activity separately.</p><button className="button secondary" type="button" onClick={addExperience}>Add experience</button></div>}</div>
       <div className="selection-helper"><span>{selectedIds.length} of 5 selected</span><p>We&apos;ll combine evidence across these experiences rather than treating every job separately.</p>{selectedIds.length === 0 && <strong>Select at least 1 experience to continue.</strong>}</div>
-      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={selectedIds.length < 1 || selectedIds.length > 5} onClick={onContinue}>Use these experiences <span aria-hidden="true">→</span></button></div>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={selectedIds.length < 1 || selectedIds.length > 5} onClick={() => onContinue(experiences)}>Use these experiences <span aria-hidden="true">→</span></button></div>
     </section>
   );
 }

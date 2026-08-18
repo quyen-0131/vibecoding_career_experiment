@@ -1,7 +1,7 @@
 import type { ActivityCategory } from "@/data/activityCatalog";
 import type { CareerId, CareerImportance } from "@/data/careers";
 
-export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type ExperienceType = "work" | "internship" | "project" | "volunteer";
 
@@ -33,11 +33,41 @@ export type ActivitySource = {
 export type NormalizedActivity = {
   id: string;
   canonicalId: string;
+  /** The user's/CV's wording is evidence and is never silently discarded. */
+  originalLabel: string;
+  originalLabels: string[];
   label: string;
   category: ActivityCategory;
   sources: ActivitySource[];
   recurrenceCount: number;
+  components: SemanticActivityComponent[];
+  careerTransfers: Partial<Record<CareerId, CareerTransfer>>;
+  mappingStatus: "mapped" | "partial" | "unknown" | "mapping" | "failed";
+  mappingError?: string;
   userAdded?: boolean;
+};
+
+export type SemanticEvidenceType = "explicit" | "inferred";
+export type SemanticConfidence = "high" | "medium" | "low";
+
+export type SemanticActivityComponent = {
+  canonicalActivityId: string;
+  label: string;
+  evidenceType: SemanticEvidenceType;
+  confidence: SemanticConfidence;
+  rationale: string;
+  confirmedByUser?: boolean;
+};
+
+export type CareerTransferRelationship = "direct" | "transferable" | "adjacent" | "unknown";
+
+export type CareerTransfer = {
+  careerId: CareerId;
+  careerActivityId: string;
+  relationship: CareerTransferRelationship;
+  importance: CareerImportance;
+  confidence: SemanticConfidence;
+  rationale: string;
 };
 
 export type ActivityPreference = "more" | "same" | "less";
@@ -81,8 +111,6 @@ export type PrototypeState = {
   normalizedActivities: NormalizedActivity[];
   topEvidenceActivities: NormalizedActivity[];
   evidenceResponses: Record<string, ActivityEvidenceResponse>;
-  priorityActivityIds: string[];
-  minimizedActivityIds: string[];
   availableUncertaintyChoices: UncertaintyChoice[];
   selectedUncertaintyId?: string;
 };

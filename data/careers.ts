@@ -5,6 +5,9 @@ export type CareerActivity = {
   label: string;
   importance: CareerImportance;
   description: string;
+  aliases?: string[];
+  underlyingCapabilities?: string[];
+  typicalDeliverables?: string[];
 };
 
 export type CareerId =
@@ -14,7 +17,12 @@ export type CareerId =
   | "product-analyst"
   | "ux-researcher"
   | "management-consultant"
-  | "consumer-insights-researcher";
+  | "consumer-insights-researcher"
+  | "business-analyst"
+  | "service-designer"
+  | "policy-analyst"
+  | "organisational-development-consultant"
+  | "marketing-strategist";
 
 export type CareerUncertainty = {
   title: string;
@@ -30,7 +38,15 @@ export type CareerModel = {
   uncertainty: CareerUncertainty;
 };
 
-const activity = (id: string, label: string, importance: CareerImportance, description: string): CareerActivity => ({ id, label, importance, description });
+const activity = (
+  id: string,
+  label: string,
+  importance: CareerImportance,
+  description: string,
+  aliases: string[] = [],
+  underlyingCapabilities: string[] = [label],
+  typicalDeliverables: string[] = [],
+): CareerActivity => ({ id, label, importance, description, aliases, underlyingCapabilities, typicalDeliverables });
 
 export const careerModels: CareerModel[] = [
   {
@@ -45,14 +61,25 @@ export const careerModels: CareerModel[] = [
     activities: [
       activity("problem-framing", "Problem framing", "Core", "Product managers turn ambiguous user and business needs into clear product problems."),
       activity("product-prioritisation", "Product prioritisation", "Core", "Product managers choose which opportunities deserve attention and make trade-offs across competing needs."),
+      activity("product-strategy", "Product strategy development", "Core", "Product managers develop and communicate a product direction by connecting user problems, market context, business goals and product capabilities. Strategy work helps teams decide which outcomes to pursue, which opportunities to defer and how near-term choices support a coherent direction.", ["strategy development", "product direction"], ["strategic reasoning", "opportunity framing"], ["product strategy", "strategy narrative"]),
       activity("stakeholder-communication", "Stakeholder communication", "Core", "Product managers align design, engineering and business partners around decisions and priorities."),
       activity("product-delivery", "Product delivery and iteration", "Core", "Product managers guide work from an initial decision through delivery, learning and iteration."),
       activity("user-research", "User research", "Important", "Product managers use user evidence to understand problems, needs and product opportunities."),
       activity("insight-synthesis", "Insight synthesis", "Important", "Product managers combine user, market and product evidence to clarify priorities."),
       activity("metrics-analysis", "Metrics analysis", "Important", "Product managers use product metrics to understand behaviour, performance and outcomes."),
+      activity("quantitative-data-analysis", "Quantitative data analysis", "Important", "Product managers analyse or interpret quantitative evidence to understand users, product performance and trade-offs. Deep analysis may be shared with analysts, but using data in decisions is a substantial part of the role."),
+      activity("product-launch-planning", "Product launch planning", "Important", "Product managers coordinate the evidence, decision materials and cross-functional work needed to introduce a product or feature."),
+      activity("enablement-materials", "Product decision and launch materials", "Supporting", "Product managers create briefs, recommendations and launch materials that help teams understand a product direction."),
       activity("technical-tradeoffs", "Technical trade-offs", "Important", "Product managers balance user value, business goals and engineering constraints."),
       activity("engineering-collaboration", "Working with engineering", "Important", "Product managers work closely with engineers to shape feasible solutions and delivery choices."),
       activity("experimentation", "Experimentation", "Supporting", "Product managers use experiments to reduce uncertainty before or after product decisions."),
+      activity("research-design", "Research design", "Supporting", "Product managers help shape research questions and methods when evidence is needed for a product decision.", ["study planning"], ["evidence planning"], ["research brief"]),
+      activity("requirements-clarification", "Requirements clarification", "Important", "Product managers clarify user and business needs before a team commits to a solution.", ["requirements gathering"], ["needs translation"], ["problem brief"]),
+      activity("user-story-development", "Creating user stories", "Supporting", "Product managers may express user needs as concise stories or acceptance-oriented requirements.", ["user stories"], ["written product communication"], ["user story", "acceptance criteria"]),
+      activity("proposal-development", "Product proposals and business cases", "Important", "Product managers write proposals and business cases to connect a problem, evidence and proposed direction.", ["product proposal", "business case"], ["recommendation development", "persuasive writing"], ["product proposal", "decision memo"]),
+      activity("roadmap-planning", "Roadmap planning", "Core", "Product managers sequence outcomes and initiatives while making dependencies and uncertainty visible.", ["product roadmap"], ["planning", "prioritisation"], ["roadmap"]),
+      activity("success-measures", "Defining success measures", "Important", "Product managers define what observable outcome would show whether a product decision worked.", ["success metrics"], ["measurement reasoning"], ["measurement plan"]),
+      activity("report-writing", "Strategic product reports and decision writing", "Important", "Product managers turn research, data, strategic reasoning and product decisions into clear written narratives. Strategic reports, product briefs and decision memos help cross-functional teams understand the evidence, proposed direction, trade-offs and measures of success.", ["product brief", "decision memo", "strategic report"], ["evidence synthesis", "strategic communication", "recommendation writing"], ["product brief", "decision memo", "strategy narrative"]),
     ],
   },
   {
@@ -151,7 +178,7 @@ export const careerModels: CareerModel[] = [
     },
     activities: [
       activity("problem-framing", "Problem structuring", "Core", "Consultants break ambiguous business questions into a tractable work plan."),
-      activity("strategic-recommendations", "Strategic recommendations", "Core", "Consultants develop a clear point of view and recommend practical choices."),
+      activity("strategic-recommendations", "Strategy development and recommendations", "Core", "Management consultants develop a defensible strategic point of view by integrating client objectives, qualitative and quantitative evidence, alternatives and implementation constraints. They explain what the client should do, why that direction is preferable and what trade-offs or risks it creates.", ["strategy development", "recommendation development"], ["structured problem-solving", "evidence synthesis", "option evaluation"], ["strategic recommendation", "executive memo"]),
       activity("client-communication", "Client communication", "Core", "Consultants work directly with client teams throughout an engagement."),
       activity("client-presentation", "Client presentations", "Core", "Consultants present evidence and persuade senior stakeholders to act."),
       activity("quantitative-data-analysis", "Business data analysis", "Important", "Market, financial and operational data is analysed to support recommendations."),
@@ -160,6 +187,15 @@ export const careerModels: CareerModel[] = [
       activity("insight-synthesis", "Insight synthesis", "Important", "Consultants combine interviews, data and market evidence into a coherent answer."),
       activity("project-coordination", "Engagement coordination", "Supporting", "Consultants manage workstreams, interviews and deadlines across a project."),
       activity("research-design", "Research planning", "Supporting", "Consultants plan efficient research to answer a strategic question."),
+      activity("enablement-materials", "Decision materials and toolkits", "Important", "Consultants turn research and recommendations into clear toolkits, reports and materials that support client decisions or implementation."),
+      activity("programme-design", "Programme and initiative design", "Important", "Consultants may design programmes or initiatives that translate a diagnosis into coordinated action."),
+      activity("programme-evaluation", "Programme evaluation", "Important", "Consultants assess whether programmes achieved intended outcomes and what should change."),
+      activity("qualitative-research", "Qualitative research", "Important", "Consultants use interviews and qualitative evidence to understand markets, organisations and stakeholder perspectives.", ["interview research"], ["evidence gathering"], ["interview guide", "research notes"]),
+      activity("interviewing", "Client and stakeholder interviews", "Important", "Consultants conduct interviews to develop and test an understanding of the client problem.", ["expert interviews", "client interviews"], ["questioning", "active listening"], ["interview notes"]),
+      activity("structured-problem-solving", "Structured problem-solving", "Core", "Consultants break an ambiguous problem into clear questions and testable lines of analysis.", ["issue tree", "structured framework"], ["problem structuring"], ["workplan"]),
+      activity("proposal-development", "Proposal development", "Core", "Consultants turn an understanding of a problem into a persuasive scope, approach or recommendation.", ["consulting proposal", "pitch"], ["recommendation development", "persuasive writing"], ["proposal", "statement of work"]),
+      activity("report-writing", "Strategic reports and slide creation", "Core", "Management consultants structure complex analysis into concise reports, executive memos and presentations that lead a client from evidence to implications and recommended action. The work requires synthesis, a clear storyline and writing that supports a decision rather than merely documenting information.", ["slide deck", "client report", "strategic report"], ["evidence synthesis", "storylining", "recommendation writing"], ["strategic report", "executive memo", "slide deck"]),
+      activity("process-design", "Implementation planning", "Important", "Consultants translate recommendations into a practical sequence of actions, owners and dependencies.", ["implementation roadmap"], ["planning"], ["implementation plan"]),
     ],
   },
   {
@@ -181,6 +217,106 @@ export const careerModels: CareerModel[] = [
       activity("insight-synthesis", "Consumer insight synthesis", "Core", "Researchers combine evidence into a clear account of what consumers need and why."),
       activity("client-presentation", "Insight presentations", "Important", "Findings are communicated to marketing, innovation or client teams."),
       activity("strategic-recommendations", "Market recommendations", "Supporting", "Consumer evidence informs brand, product and go-to-market choices."),
+    ],
+  },
+  {
+    id: "business-analyst",
+    title: "Business Analyst",
+    family: "Business analysis",
+    uncertainty: {
+      title: "I want to know whether I enjoy improving business processes",
+      question: "Do I enjoy investigating business needs and turning them into practical process or system changes?",
+      explores: ["problem-framing", "process-improvement", "stakeholder-communication"],
+    },
+    activities: [
+      activity("problem-framing", "Business problem framing", "Core", "Business analysts clarify ambiguous operational or system needs before defining a change."),
+      activity("process-improvement", "Process improvement", "Core", "Business analysts map current processes and identify practical improvements."),
+      activity("stakeholder-communication", "Stakeholder communication", "Core", "Business analysts gather requirements and align people affected by a proposed change."),
+      activity("quantitative-data-analysis", "Business data analysis", "Important", "Operational data is analysed to understand problems and evaluate possible changes."),
+      activity("insight-synthesis", "Requirements synthesis", "Important", "Evidence from users, data and processes is combined into clear requirements."),
+      activity("project-coordination", "Change coordination", "Important", "Business analysts coordinate decisions and dependencies across a change initiative."),
+      activity("report-writing", "Business documentation", "Important", "Requirements, process findings and decisions are documented clearly."),
+      activity("client-presentation", "Recommendation presentations", "Supporting", "Findings and proposed changes are presented to decision-makers."),
+    ],
+  },
+  {
+    id: "service-designer",
+    title: "Service Designer",
+    family: "Design",
+    uncertainty: {
+      title: "I want to know whether I enjoy redesigning end-to-end services",
+      question: "Do I enjoy combining research and systems thinking to improve an end-to-end service experience?",
+      explores: ["user-research", "problem-framing", "process-improvement"],
+    },
+    activities: [
+      activity("user-research", "User research", "Core", "Service designers investigate how people experience a service across multiple touchpoints."),
+      activity("problem-framing", "Service problem framing", "Core", "Service designers define experience and system problems that span teams or channels."),
+      activity("process-improvement", "Service process improvement", "Core", "Current service journeys are redesigned to reduce friction and improve outcomes."),
+      activity("research-design", "Research design", "Important", "Service designers select methods that reveal user needs and operational constraints."),
+      activity("insight-synthesis", "Service insight synthesis", "Important", "Research and operational evidence are combined into a coherent service opportunity."),
+      activity("facilitation", "Co-design facilitation", "Important", "Workshops help users and stakeholders shape possible service improvements together."),
+      activity("stakeholder-communication", "Cross-service stakeholder communication", "Important", "Service designers align teams responsible for different parts of the experience."),
+      activity("usability-testing", "Prototype testing", "Supporting", "Service concepts and touchpoints are tested before wider implementation."),
+    ],
+  },
+  {
+    id: "policy-analyst",
+    title: "Policy Analyst",
+    family: "Policy",
+    uncertainty: {
+      title: "I want to know whether I enjoy evidence-based policy work",
+      question: "Do I enjoy weighing research, stakeholder needs and implementation constraints to develop policy advice?",
+      explores: ["research-design", "quantitative-data-analysis", "strategic-recommendations"],
+    },
+    activities: [
+      activity("market-research", "Policy and landscape research", "Core", "Policy analysts investigate the context, precedents and affected populations around an issue."),
+      activity("quantitative-data-analysis", "Policy data analysis", "Core", "Administrative, survey or population data is analysed to understand a policy problem."),
+      activity("insight-synthesis", "Evidence synthesis", "Core", "Research, stakeholder evidence and implementation realities are combined into policy advice."),
+      activity("strategic-recommendations", "Policy recommendations", "Core", "Analysts develop options and explain their likely consequences and trade-offs."),
+      activity("research-design", "Policy research design", "Important", "Analysts plan evidence gathering that is proportionate to a policy question."),
+      activity("stakeholder-communication", "Stakeholder consultation", "Important", "Policy analysts gather and communicate perspectives from affected groups and delivery partners."),
+      activity("report-writing", "Policy writing", "Important", "Evidence and options are expressed in clear briefs, reports and recommendations."),
+      activity("causal-evaluation", "Policy evaluation", "Supporting", "Evaluation methods help assess whether a policy contributed to intended outcomes."),
+    ],
+  },
+  {
+    id: "organisational-development-consultant",
+    title: "Organisational Development Consultant",
+    family: "People advisory",
+    uncertainty: {
+      title: "I want to know whether I enjoy changing how organisations work",
+      question: "Do I enjoy diagnosing people and organisational challenges and designing practical change interventions?",
+      explores: ["behavioural-analysis", "facilitation", "intervention-design"],
+    },
+    activities: [
+      activity("behavioural-analysis", "Organisational behaviour analysis", "Core", "OD consultants diagnose behavioural and cultural patterns affecting how an organisation works."),
+      activity("intervention-design", "Change intervention design", "Core", "Evidence is translated into interventions that support behaviour, capability or culture change."),
+      activity("facilitation", "Workshop facilitation", "Core", "OD work frequently involves facilitating leaders and teams through diagnosis and change."),
+      activity("stakeholder-communication", "Stakeholder communication", "Core", "Consultants align leaders, employees and delivery partners around change goals."),
+      activity("research-design", "Organisational research design", "Important", "Surveys, interviews and workshops are designed to understand organisational needs."),
+      activity("qualitative-analysis", "Qualitative organisational analysis", "Important", "Interview and workshop evidence is analysed for recurring cultural and behavioural themes."),
+      activity("insight-synthesis", "Organisational insight synthesis", "Important", "Multiple evidence sources are combined into a clear diagnosis."),
+      activity("strategic-recommendations", "Change recommendations", "Important", "Consultants recommend practical changes to structures, processes or leadership behaviour."),
+    ],
+  },
+  {
+    id: "marketing-strategist",
+    title: "Marketing Strategist",
+    family: "Marketing",
+    uncertainty: {
+      title: "I want to know whether I enjoy turning customer evidence into market strategy",
+      question: "Do I enjoy combining consumer insight, positioning and performance evidence to make marketing choices?",
+      explores: ["market-research", "insight-synthesis", "strategic-recommendations"],
+    },
+    activities: [
+      activity("market-research", "Market and competitor research", "Core", "Marketing strategists investigate audiences, competitors and changing market conditions."),
+      activity("insight-synthesis", "Customer insight synthesis", "Core", "Customer, market and performance evidence is combined into a strategic point of view."),
+      activity("strategic-recommendations", "Marketing recommendations", "Core", "Strategists recommend positioning, audience and channel choices."),
+      activity("quantitative-data-analysis", "Campaign and customer analysis", "Important", "Quantitative evidence is used to understand audience behaviour and marketing performance."),
+      activity("user-research", "Customer research", "Important", "Direct customer evidence helps explain needs, language and motivations."),
+      activity("metrics-analysis", "Marketing performance analysis", "Important", "Strategists use performance measures to understand what is working and what needs adjustment."),
+      activity("client-presentation", "Strategy presentations", "Important", "Marketing recommendations are communicated to clients or internal decision-makers."),
+      activity("stakeholder-communication", "Marketing stakeholder communication", "Supporting", "Strategists coordinate decisions across creative, commercial and delivery teams."),
     ],
   },
 ];

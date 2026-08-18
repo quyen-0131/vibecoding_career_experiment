@@ -21,14 +21,16 @@ export function CvUploadScreen({ filename, onCvReady, onUseSample, onContinue, o
     if (!file) return;
     setError("");
     setIsReading(true);
+    let text: string;
     try {
-      const text = await extractCvText(file);
-      onCvReady(file.name, text);
+      text = await extractCvText(file);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "We could not read this CV. Please try another file.");
-    } finally {
       setIsReading(false);
+      return;
     }
+    setIsReading(false);
+    onCvReady(file.name, text);
   };
 
   return (

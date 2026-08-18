@@ -1,4 +1,5 @@
-import { reconstructPdfPageText } from "@/lib/pdf/reconstructPdfPageText";
+import { debugExtractedPdfText } from "@/lib/pdf/debugExtractedPdfText";
+import { joinPdfPageTexts, reconstructPdfPageText } from "@/lib/pdf/reconstructPdfPageText";
 
 export async function extractPdfText(file: File): Promise<string> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -23,10 +24,11 @@ export async function extractPdfText(file: File): Promise<string> {
       pages.push(reconstructPdfPageText(textItems));
     }
 
-    const extractedText = pages.join("\n").trim();
+    const extractedText = joinPdfPageTexts(pages);
     if (!extractedText) {
       throw new Error("We could not find selectable text in this PDF. Try another CV or use the sample data.");
     }
+    debugExtractedPdfText(file.name, extractedText);
     return extractedText;
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("We could not")) throw error;
