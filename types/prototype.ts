@@ -1,22 +1,82 @@
+import type { ActivityCategory } from "@/data/activityCatalog";
 import type { CareerId, CareerImportance } from "@/data/careers";
 
 export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+export type ExperienceType = "work" | "internship" | "project" | "volunteer";
+
 export type DetectedActivity = {
   id: string;
-  activityId: string;
+  canonicalId: string;
   label: string;
-  confirmed: boolean;
+  category: ActivityCategory;
+  supportingText: string;
 };
 
-export type DetectedExperience = {
+export type Experience = {
   id: string;
-  organisation: string;
   title: string;
+  organisation?: string;
+  type: ExperienceType;
+  description?: string;
   activities: DetectedActivity[];
 };
 
+export type DetectedExperience = Experience;
+
+export type ActivitySource = {
+  experienceId: string;
+  title: string;
+  organisation?: string;
+};
+
+export type NormalizedActivity = {
+  id: string;
+  canonicalId: string;
+  /** The user's/CV's wording is evidence and is never silently discarded. */
+  originalLabel: string;
+  originalLabels: string[];
+  label: string;
+  category: ActivityCategory;
+  sources: ActivitySource[];
+  recurrenceCount: number;
+  components: SemanticActivityComponent[];
+  careerTransfers: Partial<Record<CareerId, CareerTransfer>>;
+  mappingStatus: "mapped" | "partial" | "unknown" | "mapping" | "failed";
+  mappingError?: string;
+  userAdded?: boolean;
+};
+
+export type SemanticEvidenceType = "explicit" | "inferred";
+export type SemanticConfidence = "high" | "medium" | "low";
+
+export type SemanticActivityComponent = {
+  canonicalActivityId: string;
+  label: string;
+  evidenceType: SemanticEvidenceType;
+  confidence: SemanticConfidence;
+  rationale: string;
+  confirmedByUser?: boolean;
+};
+
+export type CareerTransferRelationship = "direct" | "transferable" | "adjacent" | "unknown";
+
+export type CareerTransfer = {
+  careerId: CareerId;
+  careerActivityId: string;
+  relationship: CareerTransferRelationship;
+  importance: CareerImportance;
+  confidence: SemanticConfidence;
+  rationale: string;
+};
+
 export type ActivityPreference = "more" | "same" | "less";
+export type SkillConfidence = "low" | "medium" | "high";
+
+export type ActivityEvidenceResponse = {
+  preference?: ActivityPreference;
+  confidence?: SkillConfidence;
+};
 
 export type CareerRelevance = {
   importance: CareerImportance;
@@ -28,11 +88,29 @@ export type CareerRelevanceByActivity = Record<
   Partial<Record<CareerId, CareerRelevance>>
 >;
 
+export type UncertaintyType = "careerA" | "careerB" | "comparison" | "guided";
+
+export type UncertaintyChoice = {
+  id: string;
+  type: UncertaintyType;
+  careerId?: CareerId;
+  label: string;
+  title: string;
+  question: string;
+  supportingText: string;
+  explores: string[];
+  whyInformative: string;
+};
+
 export type PrototypeState = {
-  careers: CareerId[];
+  selectedCareers: CareerId[];
   uploadedCvFilename: string;
   extractedCvText: string;
-  experiences: DetectedExperience[];
-  preferences: Record<string, ActivityPreference>;
-  careerRelevance: CareerRelevanceByActivity;
+  detectedExperiences: DetectedExperience[];
+  selectedExperienceIds: string[];
+  normalizedActivities: NormalizedActivity[];
+  topEvidenceActivities: NormalizedActivity[];
+  evidenceResponses: Record<string, ActivityEvidenceResponse>;
+  availableUncertaintyChoices: UncertaintyChoice[];
+  selectedUncertaintyId?: string;
 };

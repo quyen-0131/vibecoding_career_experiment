@@ -1,17 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { extractPdfText } from "@/lib/pdf/extractPdfText";
+import { extractCvText } from "@/lib/cv/extractCvText";
 
 type Props = {
   filename: string;
-  onPdfReady: (filename: string, text: string) => void;
+  onCvReady: (filename: string, text: string) => void;
   onUseSample: () => void;
   onContinue: () => void;
   onBack: () => void;
 };
 
-export function CvUploadScreen({ filename, onPdfReady, onUseSample, onContinue, onBack }: Props) {
+export function CvUploadScreen({ filename, onCvReady, onUseSample, onContinue, onBack }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isReading, setIsReading] = useState(false);
@@ -21,14 +21,16 @@ export function CvUploadScreen({ filename, onPdfReady, onUseSample, onContinue, 
     if (!file) return;
     setError("");
     setIsReading(true);
+    let text: string;
     try {
-      const text = await extractPdfText(file);
-      onPdfReady(file.name, text);
+      text = await extractCvText(file);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "We could not read this PDF. Please try another file.");
-    } finally {
+      setError(caught instanceof Error ? caught.message : "We could not read this CV. Please try another file.");
       setIsReading(false);
+      return;
     }
+    setIsReading(false);
+    onCvReady(file.name, text);
   };
 
   return (
@@ -44,11 +46,11 @@ export function CvUploadScreen({ filename, onPdfReady, onUseSample, onContinue, 
         onDragLeave={(event) => { event.preventDefault(); setIsDragging(false); }}
         onDrop={(event) => { event.preventDefault(); setIsDragging(false); void readFile(event.dataTransfer.files[0]); }}
       >
-        <div className="upload-icon" aria-hidden="true">PDF</div>
+        <div className="upload-icon" aria-hidden="true">CV</div>
         <h2>{filename || "Drop your CV here"}</h2>
-        <p>{filename ? "Your CV is ready to review." : "PDF only. Your file stays in this browser session."}</p>
-        <input ref={inputRef} className="visually-hidden" type="file" accept="application/pdf,.pdf" onChange={(event) => void readFile(event.target.files?.[0])} />
-        <button className="button secondary" type="button" disabled={isReading} onClick={() => inputRef.current?.click()}>{isReading ? "Reading PDF..." : filename ? "Choose a different PDF" : "Choose PDF"}</button>
+        <p>{filename ? "Your CV is ready to review." : "PDF or Word (.docx). Your file stays in this browser session."}</p>
+        <input ref={inputRef} className="visually-hidden" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,.doc" onChange={(event) => void readFile(event.target.files?.[0])} />
+        <button className="button secondary" type="button" disabled={isReading} onClick={() => inputRef.current?.click()}>{isReading ? "Reading CV..." : filename ? "Choose a different CV" : "Choose CV"}</button>
       </div>
 
       {error && <div className="upload-error" role="alert"><strong>That file did not work.</strong><span>{error}</span></div>}
