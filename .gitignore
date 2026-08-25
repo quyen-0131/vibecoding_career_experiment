@@ -13,3 +13,6 @@
 /.tmp/
 /tmp/
 /scripts/__pycache__/
+
+.vercel
+.env*

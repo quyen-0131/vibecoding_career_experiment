@@ -1,0 +1,14 @@
+node_modules
+.next
+.next-local
+.tmp
+tmp
+.pnpm-store
+.git
+.env*
+docs
+output
+scripts
+tests
+*.log
+*.tsbuildinfo
