@@ -1,5 +1,11 @@
 import type { CareerId, CareerImportance } from "@/data/careers";
-import type { CareerTransfer, NormalizedActivity, SemanticConfidence } from "@/types/prototype";
+import type {
+  ActivityEvidenceResponse,
+  ActivityPreference,
+  CareerTransfer,
+  NormalizedActivity,
+  SemanticConfidence,
+} from "@/types/prototype";
 
 const importanceValue: Record<CareerImportance, number> = { Core: 4, Important: 3, Supporting: 2, Limited: 0 };
 const confidenceValue: Record<SemanticConfidence, number> = { high: 3, medium: 2, low: 1 };
@@ -30,4 +36,70 @@ export function selectTopEvidenceActivities(activities: NormalizedActivity[], ca
   take(pool.filter(({ activity }) => !chosen.has(activity.id)), limit - chosen.size);
 
   return [...chosen.values()].slice(0, limit);
+}
+
+const communicationActivityIds = new Set([
+  "client-presentation",
+  "stakeholder-communication",
+  "report-writing",
+  "proposal-development",
+  "enablement-materials",
+]);
+
+const reviewGroups = [
+  { id: "research", label: "Research" },
+  { id: "analysis", label: "Analysis" },
+  { id: "communication", label: "Communication" },
+  { id: "strategy-planning", label: "Strategy & planning" },
+  { id: "execution-collaboration", label: "Execution & collaboration" },
+  { id: "other", label: "Other work" },
+] as const;
+
+export type EvidenceActivityGroup = {
+  id: string;
+  label: string;
+  activities: NormalizedActivity[];
+};
+
+function getReviewGroupId(activity: NormalizedActivity) {
+  if (communicationActivityIds.has(activity.canonicalId)) return "communication";
+  if (activity.category === "Research") return "research";
+  if (activity.category === "Analysis") return "analysis";
+  if (activity.category === "Communication" || activity.category === "Written Work") return "communication";
+  if (activity.category === "Product & Strategy" || activity.category === "Planning & Design") return "strategy-planning";
+  if (activity.category === "Execution") return "execution-collaboration";
+  return "other";
+}
+
+export function getEvidenceActivityGroups(activities: NormalizedActivity[]): EvidenceActivityGroup[] {
+  return reviewGroups
+    .map((definition) => ({
+      ...definition,
+      activities: activities.filter((activity) => getReviewGroupId(activity) === definition.id),
+    }))
+    .filter((group) => group.activities.length > 0);
+}
+
+export function applyPreferenceToActivityGroup(
+  responses: Record<string, ActivityEvidenceResponse>,
+  group: EvidenceActivityGroup,
+  preference: ActivityPreference,
+) {
+  const next = { ...responses };
+  group.activities.forEach((activity) => {
+    next[activity.id] = {
+      preference,
+      preferenceSource: "group",
+      groupId: group.id,
+    };
+  });
+  return next;
+}
+
+export function sortActivitiesForGroupedReview(activities: NormalizedActivity[]) {
+  const groupOrder = new Map(reviewGroups.map((group, index) => [group.id, index]));
+  return [...activities].sort((a, b) => {
+    const groupDifference = (groupOrder.get(getReviewGroupId(a)) ?? 99) - (groupOrder.get(getReviewGroupId(b)) ?? 99);
+    return groupDifference || a.label.localeCompare(b.label);
+  });
 }

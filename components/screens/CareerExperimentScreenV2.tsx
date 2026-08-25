@@ -93,17 +93,17 @@ function getScenarioContext(role: CareerTaskId, scenario: ExperimentScenario) {
 }
 
 function StageMeta({ stage }: { stage: ExperimentStage }) {
-  return <div className="experiment-stage-meta"><span>Step 7 · Experiment</span><strong>{stageLabels[stage]}</strong></div>;
+  return <div className="experiment-stage-meta"><span>Phase 3 · Plan a career experiment</span><strong>{stageLabels[stage]}</strong></div>;
 }
 
-function QuestionScreen({ state, onChange, onBack, onContinue, onPreview }: { state: CareerExperimentState; onChange: (state: CareerExperimentState) => void; onBack: () => void; onContinue: () => void; onPreview: () => void }) {
+function QuestionScreen({ state, onChange, onBack, onContinue, onPreview, showPreview }: { state: CareerExperimentState; onChange: (state: CareerExperimentState) => void; onBack: () => void; onContinue: () => void; onPreview: () => void; showPreview: boolean }) {
   const questions = createExperimentQuestions(state.selectedCareers);
   return (
     <section className="screen wide-screen experiment-screen">
       <StageMeta stage="question" />
       <div className="eyebrow">The app designs the trial. You choose the question.</div>
       <h1>What would you like to learn next?</h1>
-      <p className="lead compact">Your past experience can only tell us so much. Choose something you want more evidence about.</p>
+      <p className="lead compact">Your past experience can only tell us so much. Choose the question you want new firsthand evidence about.</p><p className="purpose-note"><strong>Why we&apos;re asking</strong><span>The app designs the experiment. You choose what you want to learn. Selecting a question does not commit you to either career.</span></p>
       <div className="experiment-question-grid">
         {questions.map((question) => (
           <button
@@ -118,13 +118,13 @@ function QuestionScreen({ state, onChange, onBack, onContinue, onPreview }: { st
           </button>
         ))}
       </div>
-      {process.env.NODE_ENV === "development" && (
+      {showPreview && (
         <aside className="development-shortcut">
-          <div><span>Development shortcut</span><strong>Preview the post-evaluation flow without using API credit.</strong><p>This inserts clearly labelled sample answers and evaluations for both roles.</p></div>
-          <button className="button secondary" type="button" onClick={onPreview}>Skip past both evaluations</button>
+          <div><span>Guided demo shortcut</span><strong>Preview the evidence synthesis without using API credit.</strong><p>This inserts clearly labelled sample answers and evaluation results for both roles.</p></div>
+          <button className="button secondary" type="button" onClick={onPreview}>Use sample evaluation</button>
         </aside>
       )}
-      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to evidence map</button><button className="button primary" type="button" disabled={!state.selectedQuestionId} onClick={onContinue}>Use this question <span aria-hidden="true">→</span></button></div>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to evidence map</button><button className="button primary" type="button" disabled={!state.selectedQuestionId} onClick={onContinue}>Choose a case for this question <span aria-hidden="true">→</span></button></div>
     </section>
   );
 }
@@ -187,11 +187,13 @@ function ScenarioScreen({
   onBack,
   onContinue,
   onPreview,
+  showPreview,
 }: {
   scenario: ExperimentScenario;
   onBack: () => void;
   onContinue: () => void;
   onPreview: () => void;
+  showPreview: boolean;
 }) {
   return (
     <section className="screen wide-screen experiment-screen">
@@ -233,15 +235,15 @@ function ScenarioScreen({
         This is not a career-knowledge test. The facts stay fixed for both
         roles; the role-specific activities are what change.
       </p>
-      {process.env.NODE_ENV === "development" && (
+      {showPreview && (
         <aside className="development-shortcut">
           <div>
-            <span>Development shortcut</span>
+            <span>Guided demo shortcut</span>
             <strong>See the post-revision flow for this case without using API credit.</strong>
-            <p>This inserts clearly labelled sample evaluations for both roles.</p>
+            <p>This inserts clearly labelled sample answers and evaluation results for both roles.</p>
           </div>
           <button className="button secondary" type="button" onClick={onPreview}>
-            Skip both evaluations for this case
+            Use sample evaluation for this case
           </button>
         </aside>
       )}
@@ -323,10 +325,21 @@ function EvaluationScreen({ role, trial, onBack, onRetry }: { role: CareerTaskId
   return <section className="screen confirmation-screen experiment-screen"><StageMeta stage="evaluation" /><div className="eyebrow">Qualitative rubric review</div><h1>{status === "evaluating" ? "Reviewing the evidence in your response…" : "The review could not be completed."}</h1>{status === "evaluating" ? <p className="lead compact">We are separating current reasoning, possible knowledge gaps and unclear evidence for the {roleTrials[role].roleTitle} task.</p> : <><p className="lead compact">{error}</p><p>Your answers are still saved. Retry when you are ready.</p></>}<div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to my answer</button>{status === "failed" && <button className="button primary" type="button" onClick={onRetry}>Retry evaluation</button>}</div></section>;
 }
 
-function FeedbackScreen({ trial, onBack, onContinue }: { trial: RoleTrialState; onBack: () => void; onContinue: () => void }) {
+function FeedbackScreen({ role, tone, trial, onBack, onContinue }: { role: CareerTaskId; tone: 1 | 2; trial: RoleTrialState; onBack: () => void; onContinue: () => void }) {
   const evaluation = trial.initialEvaluation;
   if (!evaluation) return null;
-  return <section className="screen wide-screen experiment-screen"><StageMeta stage="feedback" /><div className="eyebrow">Evidence so far</div><h1>Here&apos;s what your first attempt tells us</h1><p className="lead compact">These are qualitative observations about this response—not a verdict about your ability or career.</p><div className="rubric-results">{evaluation.criteria.map((criterion) => <article key={criterion.criterion}><header><strong>{criterion.criterion}</strong><span className={`rubric-rating rating-${criterion.rating}`}>{ratingLabels[criterion.rating]}</span></header><p>{criterion.evidence}</p><small>{criterion.feedback}</small>{criterion.gapType !== "none" && <em>{criterion.gapType.replace("_", " ")} gap</em>}</article>)}</div><section className="revision-focus"><span>One useful development opportunity</span><h2>{evaluation.revisionTarget}</h2>{evaluation.instruction && <><h3>A useful idea before you try again</h3><p>{evaluation.instruction}</p></>}<strong>{evaluation.revisionPrompt}</strong></section><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to first attempt</button><button className="button primary" type="button" onClick={onContinue}>Revise this part <span aria-hidden="true">→</span></button></div></section>;
+  return (
+    <section className="screen wide-screen experiment-screen">
+      <StageMeta stage="feedback" />
+      <div className={`role-review-banner tone-${tone}`}><span>Role review</span><strong>{roleTrials[role].roleTitle}</strong></div>
+      <div className="eyebrow">Evidence so far</div>
+      <h1>What your first attempt tells us</h1>
+      <p className="lead compact">These are qualitative observations about this response, not a verdict about your ability or career.</p>
+      <div className="rubric-results">{evaluation.criteria.map((criterion) => <article key={criterion.criterion}><header><strong>{criterion.criterion}</strong><span className={`rubric-rating rating-${criterion.rating}`}>{ratingLabels[criterion.rating]}</span></header><p>{criterion.evidence}</p><small>{criterion.feedback}</small>{criterion.gapType !== "none" && <em>{criterion.gapType.replace("_", " ")} gap</em>}</article>)}</div>
+      <section className="revision-focus"><span>One useful development opportunity</span><h2>{evaluation.revisionTarget}</h2>{evaluation.instruction && <><h3>A useful idea before you try again</h3><p>{evaluation.instruction}</p></>}<strong>{evaluation.revisionPrompt}</strong></section>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to first attempt</button><button className="button primary" type="button" onClick={onContinue}>Revise this part <span aria-hidden="true">→</span></button></div>
+    </section>
+  );
 }
 
 function RevisionScreen({
@@ -439,7 +452,7 @@ function ComparisonReflectionScreen({ state, onChange, onBack, onContinue }: { s
   return <section className="screen confirmation-screen experiment-screen"><StageMeta stage="comparison-reflection" /><div className="eyebrow">Compare the work, not the careers</div><h1>If you repeated one task tomorrow, which would you choose?</h1><div className="comparison-choice-list">{choices.map((choice) => <button className={state.directComparisonChoice === choice.id ? "comparison-choice selected" : "comparison-choice"} type="button" key={choice.id} onClick={() => onChange({ directComparisonChoice: choice.id as DirectComparisonChoice })}>{choice.label}</button>)}</div><label className="reflection-field"><span>Optional reflection</span><strong>What made one kind of work more or less appealing?</strong><textarea rows={5} value={state.comparisonReflection} onChange={(event) => onChange({ comparisonReflection: event.target.value })} /></label><p className="experiment-note">This is preference evidence from one controlled exercise, not a career decision.</p><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!state.directComparisonChoice} onClick={onContinue}>See the evidence <span aria-hidden="true">→</span></button></div></section>;
 }
 
-function RoleEvidenceSection({ role, trial, state }: { role: CareerTaskId; trial: RoleTrialState; state: CareerExperimentState }) {
+function RoleEvidenceSection({ role, tone, trial, state }: { role: CareerTaskId; tone: 1 | 2; trial: RoleTrialState; state: CareerExperimentState }) {
   const definition = roleTrials[role];
   const reactions = trial.workReactions.flatMap((reactionId) => {
     const label = workReactionOptions.find((option) => option.id === reactionId)?.label;
@@ -447,7 +460,7 @@ function RoleEvidenceSection({ role, trial, state }: { role: CareerTaskId; trial
   });
   const activityEvidence = definition.activities.filter((activity) => state.activityReflections[activity.id] && state.activityReflections[activity.id] !== "not_sure");
   const developmental = trial.initialEvaluation?.criteria.filter((criterion) => criterion.gapType === "knowledge" || criterion.gapType === "reasoning") ?? [];
-  return <article className="role-trial-synthesis"><header><span>Supported work trial</span><h2>{definition.roleTitle}</h2></header><section><h3>Preference evidence</h3><p>{trial.preferenceEvidence ? `After support and revision, you chose “${preferenceLabels[trial.preferenceEvidence.preference]}” for work like this.` : "Preference evidence is incomplete."}</p>{reactions.length > 0 && <ul>{reactions.map((reaction) => <li key={reaction}>{reaction}</li>)}</ul>}<p>{trial.evidenceSufficiency === "need_more" ? "You said you still need more experience before judging the wider role." : trial.evidenceSufficiency === "enough" ? "You said this was enough evidence for a starting view." : "Evidence certainty was not recorded."}</p>{activityEvidence.length > 0 && <ul>{activityEvidence.map((activity) => <li key={activity.id}><strong>{activity.label}</strong> — {activityReactionLabels[state.activityReflections[activity.id]!]}</li>)}</ul>}</section><section><h3>Current performance evidence</h3>{trial.initialEvaluation ? <ul>{trial.initialEvaluation.criteria.map((criterion) => <li key={criterion.criterion}><strong>{criterion.criterion}: {ratingLabels[criterion.rating]}</strong><span>{criterion.evidence}</span></li>)}</ul> : <p>No evaluated performance evidence was generated.</p>}</section><section><h3>Response to feedback</h3><p>{trial.learningResponse ? `${learningLabels[trial.learningResponse.category]}. ${trial.learningResponse.explanation}` : "No revision evidence was generated."}</p></section><section><h3>What appears developmental</h3>{developmental.length ? <ul>{developmental.map((criterion) => <li key={criterion.criterion}>{criterion.criterion}: {criterion.gapType === "knowledge" ? "unfamiliarity affected the first attempt" : "the reasoning was partly developed"}.</li>)}</ul> : <p>No developmental interpretation is justified from this short trial.</p>}</section><section className="unknown-section"><h3>What remains unknown</h3><ul>{definition.remainingUnknowns.map((item) => <li key={item}>{item}</li>)}</ul></section></article>;
+  return <article className={`role-trial-synthesis role-synthesis-tone-${tone}`}><header><span>Supported work trial</span><h2>{definition.roleTitle}</h2></header><section><h3>Preference evidence</h3><p>{trial.preferenceEvidence ? `After support and revision, you chose “${preferenceLabels[trial.preferenceEvidence.preference]}” for work like this.` : "Preference evidence is incomplete."}</p>{reactions.length > 0 && <ul>{reactions.map((reaction) => <li key={reaction}>{reaction}</li>)}</ul>}<p>{trial.evidenceSufficiency === "need_more" ? "You said you still need more experience before judging the wider role." : trial.evidenceSufficiency === "enough" ? "You said this was enough evidence for a starting view." : "Evidence certainty was not recorded."}</p>{activityEvidence.length > 0 && <ul>{activityEvidence.map((activity) => <li key={activity.id}><strong>{activity.label}</strong> — {activityReactionLabels[state.activityReflections[activity.id]!]}</li>)}</ul>}</section><section><h3>Current performance evidence</h3>{trial.initialEvaluation ? <ul>{trial.initialEvaluation.criteria.map((criterion) => <li key={criterion.criterion}><strong>{criterion.criterion}: {ratingLabels[criterion.rating]}</strong><span>{criterion.evidence}</span></li>)}</ul> : <p>No evaluated performance evidence was generated.</p>}</section><section><h3>Response to feedback</h3><p>{trial.learningResponse ? `${learningLabels[trial.learningResponse.category]}. ${trial.learningResponse.explanation}` : "No revision evidence was generated."}</p></section><section><h3>What appears developmental</h3>{developmental.length ? <ul>{developmental.map((criterion) => <li key={criterion.criterion}>{criterion.criterion}: {criterion.gapType === "knowledge" ? "unfamiliarity affected the first attempt" : "the reasoning was partly developed"}.</li>)}</ul> : <p>No developmental interpretation is justified from this short trial.</p>}</section><section className="unknown-section"><h3>What remains unknown</h3><ul>{definition.remainingUnknowns.map((item) => <li key={item}>{item}</li>)}</ul></section></article>;
 }
 
 type DirectionalSignal = { heading: string; explanation: string };
@@ -532,10 +545,11 @@ function SummaryScreen({
         </p>
       )}
       <div className="role-trial-synthesis-grid">
-        {testedRoles.map((role) => (
+        {testedRoles.map((role, index) => (
           <RoleEvidenceSection
             key={role}
             role={role}
+            tone={index === 0 ? 1 : 2}
             trial={state.roleTrials[role]!}
             state={state}
           />
@@ -574,9 +588,11 @@ function SummaryScreen({
 }
 export function CareerExperimentScreen({
   careers,
+  isGuidedDemo = false,
   onBackToEvidenceMap,
 }: {
   careers: CareerId[];
+  isGuidedDemo?: boolean;
   onBackToEvidenceMap: () => void;
 }) {
   const [state, setState] = useState<CareerExperimentState>(() =>
@@ -740,6 +756,7 @@ export function CareerExperimentScreen({
           setState(createPostEvaluationPreviewState(careers));
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        showPreview={isGuidedDemo || process.env.NODE_ENV === "development"}
       />
     );
   }
@@ -777,6 +794,7 @@ export function CareerExperimentScreen({
           setState(createPostEvaluationPreviewState(careers, scenario.id));
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        showPreview={isGuidedDemo || process.env.NODE_ENV === "development"}
       />
     );
   }
@@ -823,6 +841,8 @@ export function CareerExperimentScreen({
   if (currentRole && state.stage === "feedback") {
     return (
       <FeedbackScreen
+        role={currentRole}
+        tone={state.selectedCareers[0] === currentRole ? 1 : 2}
         trial={getTrial(currentRole)}
         onBack={() => moveTo("initial-attempt")}
         onContinue={() => moveTo("revision")}

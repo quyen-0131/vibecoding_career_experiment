@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "note": "Modern prototype roles can combine more than one O*NET occupation. The user's title remains visible.",
+  "roles": {
+    "product-manager": {
+      "occupationIds": [
+        "13-1082.00",
+        "11-2021.00",
+        "15-1211.00",
+        "15-1252.00"
+      ],
+      "note": "Composite of project, market, systems and software-product signals."
+    },
+    "behavioural-science-consultant": {
+      "occupationIds": [
+        "19-3032.00",
+        "19-3022.00",
+        "13-1111.00"
+      ],
+      "note": "Composite of behavioural research and advisory work."
+    },
+    "data-scientist": {
+      "occupationIds": [
+        "15-2051.00"
+      ],
+      "note": "Direct O*NET occupation."
+    },
+    "product-analyst": {
+      "occupationIds": [
+        "15-2051.01",
+        "15-2031.00",
+        "13-1161.00"
+      ],
+      "note": "Composite of BI, analytical decision support and customer/product analysis."
+    },
+    "ux-researcher": {
+      "occupationIds": [
+        "15-1255.00",
+        "19-3022.00"
+      ],
+      "note": "Composite of interface evaluation and research."
+    },
+    "management-consultant": {
+      "occupationIds": [
+        "13-1111.00"
+      ],
+      "note": "O*NET Management Analysts explicitly includes management consultants."
+    },
+    "consumer-insights-researcher": {
+      "occupationIds": [
+        "13-1161.00",
+        "19-3022.00"
+      ],
+      "note": "Composite of market and survey research."
+    },
+    "business-analyst": {
+      "occupationIds": [
+        "15-1211.00",
+        "13-1111.00"
+      ],
+      "note": "Composite of systems and management analysis."
+    },
+    "service-designer": {
+      "occupationIds": [
+        "15-1255.00",
+        "13-1111.00"
+      ],
+      "note": "Composite of interface/service experience and process analysis."
+    },
+    "policy-analyst": {
+      "occupationIds": [
+        "19-3094.00",
+        "13-1111.00",
+        "19-3022.00"
+      ],
+      "note": "Composite of policy research, analysis and survey evidence."
+    },
+    "organisational-development-consultant": {
+      "occupationIds": [
+        "19-3032.00",
+        "13-1151.00",
+        "13-1111.00"
+      ],
+      "note": "Composite of organisational psychology, development and advisory work."
+    },
+    "marketing-strategist": {
+      "occupationIds": [
+        "11-2021.00",
+        "13-1161.00"
+      ],
+      "note": "Composite of marketing strategy and market research."
+    }
+  }
+}

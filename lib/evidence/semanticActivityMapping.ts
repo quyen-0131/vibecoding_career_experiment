@@ -224,6 +224,9 @@ const bridgeByComponent: Record<string, Partial<Record<CareerId, string>>> = {
     "marketing-strategist": "strategic-recommendations",
     "organisational-development-consultant": "strategic-recommendations",
   },
+  "product-strategy": {
+    "management-consultant": "strategic-recommendations",
+  },
   "roadmap-planning": {
     "product-manager": "roadmap-planning",
     "behavioural-science-consultant": "intervention-design",
@@ -277,7 +280,7 @@ const bridgeByComponent: Record<string, Partial<Record<CareerId, string>>> = {
   },
   "stakeholder-alignment": {
     "product-manager": "stakeholder-communication",
-    "management-consultant": "client-communication",
+    "management-consultant": "stakeholder-communication",
     "business-analyst": "stakeholder-communication",
     "policy-analyst": "stakeholder-communication",
   },
@@ -328,8 +331,8 @@ const bridgeByComponent: Record<string, Partial<Record<CareerId, string>>> = {
   },
   facilitation: {
     "product-manager": "stakeholder-communication",
-    "behavioural-science-consultant": "client-communication",
-    "management-consultant": "client-communication",
+    "behavioural-science-consultant": "stakeholder-communication",
+    "management-consultant": "stakeholder-communication",
     "organisational-development-consultant": "facilitation",
   },
   "project-coordination": {
@@ -347,23 +350,25 @@ const bridgeByComponent: Record<string, Partial<Record<CareerId, string>>> = {
   },
   "partnership-development": {
     "product-manager": "stakeholder-communication",
-    "management-consultant": "client-communication",
+    "management-consultant": "stakeholder-communication",
     "marketing-strategist": "stakeholder-communication",
   },
 };
 
 const tailoredTransferDescriptions: Record<string, Partial<Record<CareerId, string>>> = {
   "learning-design": {
-    "product-manager": "Designing onboarding transfers to Product Management through shaping user onboarding journeys, coordinating delivery and planning improvements from feedback.",
-    "behavioural-science-consultant": "Designing onboarding transfers to Behavioural Science Consulting through diagnosing barriers to action and turning a behavioural hypothesis into a structured intervention.",
+    "product-manager": "This experience transfers to Product Management through designing an onboarding journey that helps users understand a product, reach an early outcome and continue using it.",
+    "behavioural-science-consultant": "This experience transfers to Behavioural Science Consulting through designing guidance and touchpoints that reduce barriers and support a desired behaviour.",
+    "management-consultant": "This experience transfers to Management Consulting when a recommendation requires training, onboarding or change-support materials that help people adopt a new process.",
   },
   "programme-design": {
     "product-manager": "Designing a programme transfers to Product Management through defining a user outcome, structuring the journey and sequencing what must be delivered.",
     "behavioural-science-consultant": "Designing a programme transfers to Behavioural Science Consulting through translating a behavioural objective into an intervention with deliberate participant touchpoints.",
   },
   "programme-implementation": {
-    "product-manager": "Programme implementation transfers to Product Management through coordinating people, dependencies and feedback as an initiative moves from decision to launch and iteration.",
-    "behavioural-science-consultant": "Programme implementation transfers to Behavioural Science Consulting through turning an intervention idea into feasible participant touchpoints that can be observed and tested.",
+    "product-manager": "This experience transfers to Product Management through coordinating owners, dependencies and feedback while delivering and improving an initiative.",
+    "behavioural-science-consultant": "This experience transfers to Behavioural Science Consulting through delivering behavioural interventions consistently enough for their use and effects to be observed.",
+    "management-consultant": "This experience transfers to Management Consulting when recommendations must become a practical implementation plan with owners, milestones, dependencies and progress checks.",
   },
   "programme-evaluation": {
     "product-manager": "Programme evaluation transfers to Product Management through checking whether a shipped change altered the intended user outcome and deciding what to improve next.",
@@ -396,6 +401,13 @@ const tailoredTransferDescriptions: Record<string, Partial<Record<CareerId, stri
   "needs-assessment": {
     "product-manager": "Needs assessment transfers to Product Management by revealing unmet user needs and barriers that can be framed as product problems or opportunities.",
     "behavioural-science-consultant": "Needs assessment transfers to Behavioural Science Consulting by clarifying whose behaviour matters, the context around it and the barriers an intervention may need to address.",
+  },
+  "product-launch-planning": {
+    "product-manager": "This experience transfers directly to Product Management through planning how a product or feature reaches users, coordinating readiness across teams and defining what a successful launch should achieve.",
+    "management-consultant": "This experience transfers to Management Consulting when a strategy or recommendation must become a coordinated launch plan with stakeholders, dependencies and clear measures of progress.",
+  },
+  "product-strategy": {
+    "management-consultant": "Product strategy transfers to Management Consulting through evaluating evidence, choices and trade-offs to develop a defensible strategic recommendation.",
   },
 };
 
@@ -621,28 +633,25 @@ export function mapNormalizedActivity(
   activity: Pick<NormalizedActivity, "canonicalId" | "originalLabel" | "sources">,
   careerIds: CareerId[],
 ) {
-  const semantic = mapActivityToSemanticComponents(activity.originalLabel);
   const knownDefinition = getActivityDefinition(activity.canonicalId);
-  const knownComponent = knownDefinition
-    ? hydrateComponent(
-        component(
-          knownDefinition.id,
-          "explicit",
-          "high",
-          "This activity type was confirmed earlier in the evidence pipeline.",
-        ),
-      )
-    : undefined;
+  const semantic = mapActivityToSemanticComponents(activity.originalLabel);
 
-  const components = uniqueComponents([
-    ...semantic.components,
-    ...(knownComponent &&
-    !semantic.components.some(
-      (item) => item.canonicalActivityId === knownComponent.canonicalActivityId,
-    )
-      ? [knownComponent]
-      : []),
-  ]);
+  // A CV sentence can support several activities. Once extraction has assigned
+  // a canonical identity, map this record using only that identity. Re-using
+  // every component from the full sentence here caused duplicate labels and
+  // explanations from neighbouring activities to leak into one another.
+  const components = knownDefinition
+    ? [
+        hydrateComponent(
+          component(
+            knownDefinition.id,
+            "explicit",
+            "high",
+            "This activity type was identified from the supporting CV evidence.",
+          ),
+        ),
+      ]
+    : semantic.components;
   const careerTransfers = mapActivityToCareers(components, careerIds);
   const hasMapped = careerIds.some(
     (careerId) => careerTransfers[careerId]?.relationship !== "unknown",
@@ -652,8 +661,8 @@ export function mapNormalizedActivity(
   );
 
   return {
-    normalizedLabel: semantic.normalizedLabel,
-    category: semantic.category,
+    normalizedLabel: knownDefinition?.label ?? semantic.normalizedLabel,
+    category: knownDefinition?.category ?? semantic.category,
     components,
     careerTransfers,
     mappingStatus: hasMapped ? (hasUnknown ? "partial" : "mapped") : "unknown",

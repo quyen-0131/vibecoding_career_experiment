@@ -13,8 +13,9 @@ export function CareerSelectionScreen({ selected, onToggle, onContinue, onBack }
     <section className="screen wide-screen">
       <div className="eyebrow">Choose two roles</div>
       <h1>Which two roles are you considering?</h1>
-      <p className="lead compact">Choose two roles you genuinely want to compare. We&apos;ll use your past experience to understand what you already know — and what still needs testing.</p>
-      <label className="career-search">Search the prototype role catalogue<input type="search" value={query} placeholder="Search roles" onChange={(event) => setQuery(event.target.value)} /></label>
+      <p className="lead compact">Choose two roles you genuinely want to compare. Selecting a role here is not a commitment.</p>
+      <p className="purpose-note"><strong>Why we&apos;re asking</strong><span>Your two choices tell us which past activities and unanswered questions matter for your decision.</span></p>
+      <label className="career-search">Search roles<input type="search" value={query} placeholder="Type a role title" onChange={(event) => setQuery(event.target.value)} /></label>
       <div className="career-grid flat-career-grid">
         {visibleCareers.map((career) => {
           const active = selected.includes(career.id);
@@ -29,7 +30,7 @@ export function CareerSelectionScreen({ selected, onToggle, onContinue, onBack }
       </div>
       {visibleCareers.length === 0 && <p className="career-search-empty">No role in the current prototype catalogue matches that search.</p>}
       <div className="selection-count" aria-live="polite">{selected.length} of 2 selected</div>
-      <div className="actions"><button className="button ghost" onClick={onBack}>Back</button><button className="button primary" disabled={selected.length !== 2} onClick={onContinue}>Continue <span aria-hidden="true">→</span></button></div>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={selected.length !== 2} onClick={onContinue}>Use these two careers <span aria-hidden="true">→</span></button></div>
     </section>
   );
 }

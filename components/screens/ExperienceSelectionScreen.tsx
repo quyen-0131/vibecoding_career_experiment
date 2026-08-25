@@ -71,7 +71,8 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
     <section className="screen wide-screen">
       <div className="eyebrow">Choose the evidence that matters</div>
       <h1>Which experiences should we learn from?</h1>
-      <p className="lead compact">Choose up to five experiences that best represent the kinds of work you&apos;ve actually done.</p>
+      <p className="lead compact">Choose up to five experiences that best represent the work you want this comparison to learn from.</p>
+      <p className="purpose-note"><strong>Why we&apos;re asking</strong><span>The CV only suggests experiences and activities. Select the relevant experiences now, confirm the activities next, and tell us your preferences later.</span></p>
       {experiences.length === 0 && <div className="parser-notice"><strong>We read the file, but couldn&apos;t separate its experience layout.</strong><p>Some CVs arrange roles, organisations and dates in complex columns. Try the Word .docx version of your CV, or add the relevant experience below.</p></div>}
       <div className="experience-select-list">{experiences.map((experience) => {
         const selected = selectedIds.includes(experience.id);
@@ -81,9 +82,9 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
           <article className={selected ? "experience-select-card selected" : "experience-select-card"} key={experience.id}>
             <button className="experience-select-main" type="button" aria-pressed={selected} disabled={!selected && selectedIds.length === 5} onClick={() => toggle(experience.id)}>
               <span className="check" aria-hidden="true">{selected ? "✓" : ""}</span>
-              <span className="experience-select-copy"><strong>{experience.title || "Untitled experience"}</strong><span>{experience.organisation || "Organisation not detected"}</span>{summary ? <small>{summary}</small> : <small className="no-activity-summary">No activities extracted from this CV entry. This does not mean the role is irrelevant — use Correct details to add what you did.</small>}</span>
+              <span className="experience-select-copy"><strong>{experience.title || "Untitled experience"}</strong><span>{experience.organisation || "Organisation not detected"}</span>{summary ? <small>{summary}</small> : <small className="no-activity-summary">No activities extracted from this CV entry. This does not mean the role is irrelevant. Use Edit details to add what you did.</small>}</span>
             </button>
-            <button className="edit-details-button" type="button" onClick={() => { setEditingId(editing ? undefined : experience.id); setPastingId(undefined); }}>{editing ? "Close" : "Correct details"}</button>
+            <button className="edit-details-button" type="button" onClick={() => { setEditingId(editing ? undefined : experience.id); setPastingId(undefined); }}>{editing ? "Close editor" : "Edit details"}</button>
             {editing && <div className="experience-edit">
               <label>Role or project title<input value={experience.title} placeholder="e.g. Market Research Consultant" onChange={(event) => update(experience.id, { title: event.target.value })} /></label>
               <label>Organisation<input value={experience.organisation ?? ""} placeholder="e.g. Decision Lab" onChange={(event) => update(experience.id, { organisation: event.target.value })} /></label>
@@ -102,7 +103,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
       })}</div>
       <div className="manual-experience-action"><button className="text-button" type="button" onClick={() => setShowAdd(!showAdd)}>+ Add a missing experience</button>{showAdd && <div className="manual-add-prompt"><p>Add one experience, then list each activity separately.</p><button className="button secondary" type="button" onClick={addExperience}>Add experience</button></div>}</div>
       <div className="selection-helper"><span>{selectedIds.length} of 5 selected</span><p>We&apos;ll combine evidence across these experiences rather than treating every job separately.</p>{selectedIds.length === 0 && <strong>Select at least 1 experience to continue.</strong>}</div>
-      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={selectedIds.length < 1 || selectedIds.length > 5} onClick={() => onContinue(experiences)}>Use these experiences <span aria-hidden="true">→</span></button></div>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={selectedIds.length < 1 || selectedIds.length > 5} onClick={() => onContinue(experiences)}>Find activities in these experiences <span aria-hidden="true">→</span></button></div>
     </section>
   );
 }

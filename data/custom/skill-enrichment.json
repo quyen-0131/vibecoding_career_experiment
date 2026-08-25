@@ -1,0 +1,987 @@
+{
+  "version": 1,
+  "note": "Editable product-specific vocabulary. O*NET occupation evidence is kept separately.",
+  "skills": [
+    {
+      "id": "process-improvement",
+      "label": "Process optimisation",
+      "category": "Execution",
+      "description": "Examining and changing a workflow to improve efficiency, quality, speed or reliability.",
+      "aliases": [
+        "process improvement",
+        "workflow optimisation",
+        "operational efficiency",
+        "process optimization"
+      ],
+      "signals": {
+        "actions": [
+          "improve",
+          "enhance",
+          "optimise",
+          "optimize",
+          "streamline",
+          "simplify",
+          "redesign"
+        ],
+        "objects": [
+          "process",
+          "workflow",
+          "procedure",
+          "operations",
+          "case-processing",
+          "reporting"
+        ],
+        "outcomes": [
+          "efficiency",
+          "turnaround",
+          "throughput",
+          "quality",
+          "time saved"
+        ]
+      },
+      "onetTerms": [
+        "process",
+        "workflow",
+        "efficiency",
+        "operations",
+        "systems evaluation"
+      ]
+    },
+    {
+      "id": "user-research",
+      "label": "User and customer research",
+      "category": "Research",
+      "description": "Gathering direct evidence about users or customers to understand needs, behaviour and context.",
+      "aliases": [
+        "customer research",
+        "user interviews",
+        "customer interviews",
+        "user discovery"
+      ],
+      "signals": {
+        "actions": [
+          "research",
+          "interview",
+          "observe",
+          "discover",
+          "investigate"
+        ],
+        "objects": [
+          "users",
+          "customers",
+          "clients",
+          "participants",
+          "needs"
+        ],
+        "outcomes": [
+          "insight",
+          "needs",
+          "pain points",
+          "opportunities"
+        ]
+      },
+      "onetTerms": [
+        "customers",
+        "users",
+        "interviews",
+        "research",
+        "consumer"
+      ]
+    },
+    {
+      "id": "needs-assessment",
+      "label": "Needs assessment",
+      "category": "Research",
+      "description": "Identifying and organising the needs of a community, customer group or organisation.",
+      "aliases": [
+        "needs identification",
+        "needs discovery",
+        "requirements discovery"
+      ],
+      "signals": {
+        "actions": [
+          "identify",
+          "understand",
+          "assess",
+          "discover"
+        ],
+        "objects": [
+          "needs",
+          "problems",
+          "pain points",
+          "requirements"
+        ],
+        "outcomes": [
+          "priorities",
+          "recommendations",
+          "plan"
+        ]
+      },
+      "onetTerms": [
+        "needs",
+        "requirements",
+        "information gathering",
+        "identifying"
+      ]
+    },
+    {
+      "id": "research-design",
+      "label": "Research design",
+      "category": "Research",
+      "description": "Choosing questions, methods, samples and evidence needed to answer a research problem.",
+      "aliases": [
+        "study design",
+        "research planning",
+        "methodology design"
+      ],
+      "signals": {
+        "actions": [
+          "design",
+          "plan",
+          "develop"
+        ],
+        "objects": [
+          "research",
+          "study",
+          "survey",
+          "methodology",
+          "sample"
+        ],
+        "outcomes": [
+          "evidence",
+          "findings"
+        ]
+      },
+      "onetTerms": [
+        "research",
+        "study",
+        "survey",
+        "data collection"
+      ]
+    },
+    {
+      "id": "qualitative-research",
+      "label": "Qualitative research",
+      "category": "Research",
+      "description": "Using interviews, focus groups or observation to explore meaning, motivation and context.",
+      "aliases": [
+        "in-depth interviews",
+        "focus groups",
+        "qualitative interviewing"
+      ],
+      "signals": {
+        "actions": [
+          "interview",
+          "moderate",
+          "observe",
+          "code"
+        ],
+        "objects": [
+          "participants",
+          "interviews",
+          "focus groups",
+          "qualitative data"
+        ],
+        "outcomes": [
+          "themes",
+          "motivations",
+          "insights"
+        ]
+      },
+      "onetTerms": [
+        "interviews",
+        "qualitative",
+        "research",
+        "information gathering"
+      ]
+    },
+    {
+      "id": "quantitative-data-analysis",
+      "label": "Quantitative data analysis",
+      "category": "Analysis",
+      "description": "Analysing numerical data to identify patterns, compare outcomes or support decisions.",
+      "aliases": [
+        "data analysis",
+        "statistical analysis",
+        "quantitative analysis"
+      ],
+      "signals": {
+        "actions": [
+          "analyse",
+          "analyze",
+          "model",
+          "calculate",
+          "query"
+        ],
+        "objects": [
+          "data",
+          "metrics",
+          "survey data",
+          "statistics",
+          "performance"
+        ],
+        "outcomes": [
+          "patterns",
+          "findings",
+          "recommendations",
+          "decisions"
+        ]
+      },
+      "onetTerms": [
+        "data analysis",
+        "mathematics",
+        "statistics",
+        "quantitative",
+        "interpreting information"
+      ]
+    },
+    {
+      "id": "qualitative-analysis",
+      "label": "Qualitative analysis",
+      "category": "Analysis",
+      "description": "Interpreting non-numerical evidence to identify themes, patterns and meaning.",
+      "aliases": [
+        "thematic analysis",
+        "interview analysis",
+        "coding qualitative data"
+      ],
+      "signals": {
+        "actions": [
+          "analyse",
+          "analyze",
+          "code",
+          "synthesise",
+          "synthesize"
+        ],
+        "objects": [
+          "interviews",
+          "qualitative data",
+          "feedback",
+          "themes"
+        ],
+        "outcomes": [
+          "themes",
+          "insights",
+          "findings"
+        ]
+      },
+      "onetTerms": [
+        "qualitative",
+        "information analysis",
+        "interpreting meaning"
+      ]
+    },
+    {
+      "id": "insight-synthesis",
+      "label": "Insight synthesis",
+      "category": "Analysis",
+      "description": "Combining evidence from multiple sources into a coherent finding or implication.",
+      "aliases": [
+        "research synthesis",
+        "evidence synthesis",
+        "finding synthesis"
+      ],
+      "signals": {
+        "actions": [
+          "synthesise",
+          "synthesize",
+          "combine",
+          "integrate",
+          "summarise",
+          "summarize"
+        ],
+        "objects": [
+          "findings",
+          "evidence",
+          "research",
+          "insights"
+        ],
+        "outcomes": [
+          "recommendation",
+          "implication",
+          "narrative"
+        ]
+      },
+      "onetTerms": [
+        "synthesize",
+        "organize information",
+        "interpreting information",
+        "making decisions"
+      ]
+    },
+    {
+      "id": "problem-framing",
+      "label": "Problem framing",
+      "category": "Product & Strategy",
+      "description": "Turning an ambiguous situation into a clear problem that can be investigated or acted on.",
+      "aliases": [
+        "problem definition",
+        "problem structuring",
+        "issue framing"
+      ],
+      "signals": {
+        "actions": [
+          "define",
+          "frame",
+          "structure",
+          "diagnose",
+          "clarify"
+        ],
+        "objects": [
+          "problem",
+          "issue",
+          "challenge",
+          "opportunity"
+        ],
+        "outcomes": [
+          "scope",
+          "priorities",
+          "workplan"
+        ]
+      },
+      "onetTerms": [
+        "problem solving",
+        "problem identification",
+        "decision making",
+        "systems analysis"
+      ]
+    },
+    {
+      "id": "strategy-development",
+      "label": "Strategy development",
+      "category": "Product & Strategy",
+      "description": "Connecting goals, evidence and choices into a coherent direction.",
+      "aliases": [
+        "strategic planning",
+        "strategy roadmap",
+        "product strategy"
+      ],
+      "signals": {
+        "actions": [
+          "develop",
+          "create",
+          "define",
+          "shape"
+        ],
+        "objects": [
+          "strategy",
+          "roadmap",
+          "direction",
+          "vision"
+        ],
+        "outcomes": [
+          "priorities",
+          "plan",
+          "growth",
+          "alignment"
+        ]
+      },
+      "onetTerms": [
+        "strategy",
+        "planning",
+        "objectives",
+        "decision making"
+      ]
+    },
+    {
+      "id": "proposal-development",
+      "label": "Proposal and recommendation development",
+      "category": "Product & Strategy",
+      "description": "Building an evidence-based case for a course of action, scope or investment.",
+      "aliases": [
+        "proposal writing",
+        "business case",
+        "recommendation development",
+        "grant application"
+      ],
+      "signals": {
+        "actions": [
+          "create",
+          "write",
+          "develop",
+          "prepare",
+          "recommend"
+        ],
+        "objects": [
+          "proposal",
+          "business case",
+          "recommendation",
+          "grant application",
+          "scope"
+        ],
+        "outcomes": [
+          "approval",
+          "funding",
+          "decision",
+          "action"
+        ]
+      },
+      "onetTerms": [
+        "recommendations",
+        "proposals",
+        "advising",
+        "decision making"
+      ]
+    },
+    {
+      "id": "report-writing",
+      "label": "Report and recommendation writing",
+      "category": "Written Work",
+      "description": "Structuring evidence and implications into a clear written output for a decision-maker.",
+      "aliases": [
+        "strategic report writing",
+        "business writing",
+        "report creation",
+        "strategic report"
+      ],
+      "signals": {
+        "actions": [
+          "write",
+          "create",
+          "prepare",
+          "author",
+          "wrote"
+        ],
+        "objects": [
+          "report",
+          "brief",
+          "memo",
+          "deck",
+          "one-pager"
+        ],
+        "outcomes": [
+          "recommendation",
+          "decision",
+          "communication"
+        ]
+      },
+      "onetTerms": [
+        "reports",
+        "written communication",
+        "documenting",
+        "recommendations"
+      ]
+    },
+    {
+      "id": "stakeholder-communication",
+      "label": "Stakeholder communication",
+      "category": "Communication",
+      "description": "Exchanging information with people who influence, deliver or are affected by work.",
+      "aliases": [
+        "stakeholder management",
+        "stakeholder engagement",
+        "external liaison"
+      ],
+      "signals": {
+        "actions": [
+          "liaise",
+          "communicate",
+          "coordinate",
+          "engage",
+          "consult",
+          "align"
+        ],
+        "objects": [
+          "stakeholders",
+          "government",
+          "authorities",
+          "partners",
+          "clients",
+          "teams"
+        ],
+        "outcomes": [
+          "alignment",
+          "approval",
+          "delivery",
+          "agreement"
+        ]
+      },
+      "onetTerms": [
+        "communicating with people outside the organization",
+        "coordinating the work and activities of others",
+        "relationships"
+      ]
+    },
+    {
+      "id": "client-communication",
+      "label": "Client communication",
+      "category": "Communication",
+      "description": "Working directly with clients to understand needs, share progress or advise on decisions.",
+      "aliases": [
+        "client advisory",
+        "client engagement",
+        "client management"
+      ],
+      "signals": {
+        "actions": [
+          "advise",
+          "present",
+          "communicate",
+          "consult",
+          "work"
+        ],
+        "objects": [
+          "client",
+          "clients",
+          "customer"
+        ],
+        "outcomes": [
+          "recommendation",
+          "decision",
+          "alignment"
+        ]
+      },
+      "onetTerms": [
+        "customers",
+        "clients",
+        "advising",
+        "external communication"
+      ]
+    },
+    {
+      "id": "project-coordination",
+      "label": "Project coordination",
+      "category": "Execution",
+      "description": "Coordinating timelines, owners, dependencies and delivery across a bounded initiative.",
+      "aliases": [
+        "programme coordination",
+        "project management",
+        "delivery coordination"
+      ],
+      "signals": {
+        "actions": [
+          "coordinate",
+          "manage",
+          "track",
+          "organise",
+          "organize"
+        ],
+        "objects": [
+          "project",
+          "programme",
+          "program",
+          "timeline",
+          "workstream",
+          "deliverables"
+        ],
+        "outcomes": [
+          "delivery",
+          "completion",
+          "on time"
+        ]
+      },
+      "onetTerms": [
+        "project management",
+        "scheduling",
+        "coordinating",
+        "organizing work"
+      ]
+    },
+    {
+      "id": "programme-implementation",
+      "label": "Programme implementation",
+      "category": "Execution",
+      "description": "Putting a programme or initiative into practice and coordinating its delivery.",
+      "aliases": [
+        "program implementation",
+        "programme delivery",
+        "initiative implementation"
+      ],
+      "signals": {
+        "actions": [
+          "implement",
+          "deliver",
+          "launch",
+          "execute",
+          "roll out"
+        ],
+        "objects": [
+          "programme",
+          "program",
+          "initiative",
+          "service"
+        ],
+        "outcomes": [
+          "adoption",
+          "delivery",
+          "participation",
+          "outcomes"
+        ]
+      },
+      "onetTerms": [
+        "implement",
+        "program",
+        "project management",
+        "coordinating"
+      ]
+    },
+    {
+      "id": "programme-evaluation",
+      "label": "Programme evaluation",
+      "category": "Analysis",
+      "description": "Assessing whether a programme achieved intended outcomes and what should change.",
+      "aliases": [
+        "program evaluation",
+        "impact evaluation",
+        "programme assessment"
+      ],
+      "signals": {
+        "actions": [
+          "evaluate",
+          "assess",
+          "measure",
+          "review"
+        ],
+        "objects": [
+          "programme",
+          "program",
+          "initiative",
+          "outcomes"
+        ],
+        "outcomes": [
+          "effectiveness",
+          "impact",
+          "improvement"
+        ]
+      },
+      "onetTerms": [
+        "evaluation",
+        "measure effectiveness",
+        "program",
+        "assess"
+      ]
+    },
+    {
+      "id": "product-launch-planning",
+      "label": "Product launch planning",
+      "category": "Product & Strategy",
+      "description": "Preparing the audience, evidence, decisions and coordination needed for a launch.",
+      "aliases": [
+        "launch planning",
+        "go-to-market planning",
+        "launch toolkit"
+      ],
+      "signals": {
+        "actions": [
+          "launch",
+          "prepare",
+          "plan",
+          "create"
+        ],
+        "objects": [
+          "product launch",
+          "go-to-market",
+          "launch toolkit",
+          "release"
+        ],
+        "outcomes": [
+          "adoption",
+          "readiness",
+          "awareness"
+        ]
+      },
+      "onetTerms": [
+        "marketing",
+        "product",
+        "planning",
+        "coordinate"
+      ]
+    },
+    {
+      "id": "learning-design",
+      "label": "Learning and onboarding design",
+      "category": "Planning & Design",
+      "description": "Designing a structured experience that helps people learn, adopt or navigate something.",
+      "aliases": [
+        "onboarding design",
+        "training design",
+        "learning strategy"
+      ],
+      "signals": {
+        "actions": [
+          "design",
+          "create",
+          "develop",
+          "launch"
+        ],
+        "objects": [
+          "onboarding",
+          "course",
+          "learning",
+          "training",
+          "curriculum"
+        ],
+        "outcomes": [
+          "learning",
+          "adoption",
+          "capability"
+        ]
+      },
+      "onetTerms": [
+        "training",
+        "instruction",
+        "learning strategies",
+        "education"
+      ]
+    },
+    {
+      "id": "roadmap-planning",
+      "label": "Roadmap planning",
+      "category": "Planning & Design",
+      "description": "Sequencing outcomes and initiatives over time while making priorities and dependencies visible.",
+      "aliases": [
+        "product roadmap",
+        "implementation roadmap",
+        "strategic roadmap"
+      ],
+      "signals": {
+        "actions": [
+          "create",
+          "plan",
+          "sequence",
+          "develop"
+        ],
+        "objects": [
+          "roadmap",
+          "milestones",
+          "initiatives",
+          "dependencies"
+        ],
+        "outcomes": [
+          "direction",
+          "alignment",
+          "delivery"
+        ]
+      },
+      "onetTerms": [
+        "planning",
+        "scheduling",
+        "priorities",
+        "organizing work"
+      ]
+    },
+    {
+      "id": "requirements-clarification",
+      "label": "Requirements clarification",
+      "category": "Planning & Design",
+      "description": "Turning stakeholder or user needs into clear requirements for a change.",
+      "aliases": [
+        "requirements gathering",
+        "requirements analysis",
+        "user needs translation"
+      ],
+      "signals": {
+        "actions": [
+          "gather",
+          "clarify",
+          "translate",
+          "document",
+          "define"
+        ],
+        "objects": [
+          "requirements",
+          "needs",
+          "specifications",
+          "user stories"
+        ],
+        "outcomes": [
+          "scope",
+          "solution",
+          "acceptance"
+        ]
+      },
+      "onetTerms": [
+        "requirements",
+        "systems analysis",
+        "information gathering",
+        "specifications"
+      ]
+    },
+    {
+      "id": "experimentation",
+      "label": "Experiment design and iteration",
+      "category": "Product & Strategy",
+      "description": "Designing a test that can reduce uncertainty about an intervention or decision.",
+      "aliases": [
+        "experimental design",
+        "a/b testing",
+        "hypothesis testing"
+      ],
+      "signals": {
+        "actions": [
+          "test",
+          "experiment",
+          "randomise",
+          "randomize",
+          "compare"
+        ],
+        "objects": [
+          "hypothesis",
+          "intervention",
+          "variant",
+          "experiment"
+        ],
+        "outcomes": [
+          "causal effect",
+          "learning",
+          "evidence"
+        ]
+      },
+      "onetTerms": [
+        "experiments",
+        "testing",
+        "research",
+        "evaluate"
+      ]
+    },
+    {
+      "id": "metrics-analysis",
+      "label": "Metrics and performance analysis",
+      "category": "Analysis",
+      "description": "Using performance measures to understand outcomes and guide decisions.",
+      "aliases": [
+        "KPI analysis",
+        "performance measurement",
+        "funnel analysis"
+      ],
+      "signals": {
+        "actions": [
+          "measure",
+          "monitor",
+          "analyse",
+          "analyze",
+          "track"
+        ],
+        "objects": [
+          "metrics",
+          "KPI",
+          "retention",
+          "conversion",
+          "performance"
+        ],
+        "outcomes": [
+          "improvement",
+          "decision",
+          "trend"
+        ]
+      },
+      "onetTerms": [
+        "monitoring",
+        "performance",
+        "metrics",
+        "evaluating information"
+      ]
+    },
+    {
+      "id": "programming",
+      "label": "Programming and data tooling",
+      "category": "Analysis",
+      "description": "Using code or technical data tools to create, transform or analyse information.",
+      "aliases": [
+        "coding",
+        "software development",
+        "SQL",
+        "Python"
+      ],
+      "signals": {
+        "actions": [
+          "code",
+          "program",
+          "query",
+          "develop",
+          "automate"
+        ],
+        "objects": [
+          "software",
+          "database",
+          "SQL",
+          "Python",
+          "script",
+          "data pipeline"
+        ],
+        "outcomes": [
+          "tool",
+          "analysis",
+          "automation"
+        ]
+      },
+      "onetTerms": [
+        "programming",
+        "computers",
+        "software",
+        "data"
+      ]
+    },
+    {
+      "id": "partnership-development",
+      "label": "Partnership development",
+      "category": "Product & Strategy",
+      "description": "Identifying and building relationships that create shared value or enable delivery.",
+      "aliases": [
+        "partner development",
+        "strategic partnerships",
+        "business development"
+      ],
+      "signals": {
+        "actions": [
+          "develop",
+          "build",
+          "manage",
+          "research"
+        ],
+        "objects": [
+          "partnership",
+          "partners",
+          "vendors",
+          "alliances"
+        ],
+        "outcomes": [
+          "growth",
+          "delivery",
+          "agreement"
+        ]
+      },
+      "onetTerms": [
+        "relationships",
+        "negotiating",
+        "sales and marketing",
+        "outside organization"
+      ]
+    },
+    {
+      "id": "facilitation",
+      "label": "Workshop and meeting facilitation",
+      "category": "Communication",
+      "description": "Guiding a group through discussion, learning or decision-making.",
+      "aliases": [
+        "workshop facilitation",
+        "meeting facilitation",
+        "moderation"
+      ],
+      "signals": {
+        "actions": [
+          "facilitate",
+          "moderate",
+          "lead"
+        ],
+        "objects": [
+          "workshop",
+          "meeting",
+          "session",
+          "discussion"
+        ],
+        "outcomes": [
+          "decision",
+          "alignment",
+          "learning"
+        ]
+      },
+      "onetTerms": [
+        "coaching",
+        "guiding",
+        "communicating",
+        "groups"
+      ]
+    }
+  ]
+}

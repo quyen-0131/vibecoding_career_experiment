@@ -42,6 +42,9 @@ export function interpretComparisonReflection(
   void _careerIds;
   const text = reflection.trim();
   if (!text) return undefined;
+  const isOptOut = /^(?:i\s+)?(?:(?:do not|don't|did not|didn't)\s+(?:have\s+)?)?(?:any\s+)?(?:reflection|thoughts?|comments?)(?:\s+to\s+add)?[.!]?$/i.test(text)
+    || /^(?:nothing|none|no reflection|nothing to add|not sure)[.!]?$/i.test(text);
+  if (isOptOut) return undefined;
 
   const themes = reflectionThemes
     .filter((theme) => theme.patterns.some((pattern) => pattern.test(text)))

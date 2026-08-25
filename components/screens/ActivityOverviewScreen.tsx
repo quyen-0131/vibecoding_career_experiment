@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EvidenceProvenance } from "@/components/EvidenceProvenance";
-import { activityCatalog, getActivityDefinition, makeCustomActivityId, type ActivityCategory } from "@/data/activityCatalog";
-import type { CareerId } from "@/data/careers";
+import { getActivityDefinition, makeCustomActivityId, type ActivityCategory } from "@/data/activityCatalog";
+import { getCareerModel, type CareerId } from "@/data/careers";
+import { analyzeResumeEvidence } from "@/lib/analysis/analyzeResumeEvidence";
+import { mergeNormalizedActivities } from "@/lib/evidence/normalizeActivities";
 import { makeUnmappedComponent, mapActivityToCareers, mapActivityToSemanticComponents, mapNormalizedActivity } from "@/lib/evidence/semanticActivityMapping";
 import type { NormalizedActivity, SemanticActivityComponent } from "@/types/prototype";
 
@@ -12,48 +14,89 @@ type Props = { activities: NormalizedActivity[]; careers: CareerId[]; onChange: 
 
 export function ActivityOverviewScreen({ activities, careers, onChange, onContinue, onBack }: Props) {
   const [draft, setDraft] = useState("");
+  const hasReconciled = useRef(false);
+  const roles = careers.map((careerId) => ({ id: careerId, title: getCareerModel(careerId)?.title ?? careerId }));
 
-  const [componentDrafts, setComponentDrafts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (hasReconciled.current) return;
+    hasReconciled.current = true;
+    const corrected = activities.map((activity) => {
+      const mapped = mapNormalizedActivity(activity, careers);
+      const originalEvidence = activity.originalEvidence?.length
+        ? activity.originalEvidence
+        : activity.sources.map((source, index) => ({
+            ...source,
+            label: activity.originalLabels[index] ?? activity.originalLabel,
+          }));
+      return { ...activity, ...mapped, originalEvidence };
+    });
+    const consolidated = mergeNormalizedActivities(corrected, careers);
+    const before = activities.map((activity) => `${activity.canonicalId}:${activity.label}:${activity.sources.length}`).join("|");
+    const after = consolidated.map((activity) => `${activity.canonicalId}:${activity.label}:${activity.sources.length}`).join("|");
+    if (before !== after || activities.some((activity) => !activity.originalEvidence)) onChange(consolidated);
+  }, [activities, careers, onChange]);
 
-  const update = (id: string, patch: Partial<NormalizedActivity>) => onChange(activities.map((item) => item.id === id ? { ...item, ...patch } : item));
-  const applyComponents = (activity: NormalizedActivity, components: SemanticActivityComponent[]) => {
+  const update = (id: string, patch: Partial<NormalizedActivity>, merge = false) => {
+    const updated = activities.map((item) => item.id === id ? { ...item, ...patch } : item);
+    onChange(merge ? mergeNormalizedActivities(updated, careers) : updated);
+  };
+
+  const analyseEditedText = (activity: NormalizedActivity, label: string) => {
+    const source = activity.sources[0];
+    const analysis = analyzeResumeEvidence({
+      text: label,
+      source: source ? { experienceId: source.experienceId, title: source.title, organisation: source.organisation } : undefined,
+      roles,
+    });
+    const inferred = analysis.skills[0];
+    const semantic = mapActivityToSemanticComponents(label);
+    const canonicalId = inferred?.skillId ?? semantic.components[0]?.canonicalActivityId ?? makeCustomActivityId(label);
+    const definition = getActivityDefinition(canonicalId);
+    const components: SemanticActivityComponent[] = inferred
+      ? [{
+          canonicalActivityId: inferred.skillId,
+          label: inferred.label,
+          evidenceType: inferred.basis,
+          confidence: inferred.confidence,
+          rationale: inferred.reason,
+          confirmedByUser: true,
+        }]
+      : semantic.components.length
+        ? semantic.components
+        : [makeUnmappedComponent(label)];
     const careerTransfers = mapActivityToCareers(components, careers);
+    const hasMapped = careers.some((careerId) => careerTransfers[careerId]?.relationship !== "unknown");
     const hasUnknown = careers.some((careerId) => careerTransfers[careerId]?.relationship === "unknown");
-    update(activity.id, {
-      canonicalId: components[0]?.canonicalActivityId ?? activity.canonicalId,
+    return {
+      canonicalId,
+      label: definition?.label ?? inferred?.label ?? semantic.normalizedLabel ?? label,
+      category: definition?.category ?? inferred?.category ?? semantic.category ?? activity.category,
       components,
       careerTransfers,
-      mappingStatus: components.length ? (hasUnknown ? "partial" : "mapped") : "unknown",
-    });
+      mappingStatus: (hasMapped ? (hasUnknown ? "partial" : "mapped") : "unknown") as NormalizedActivity["mappingStatus"],
+      userAdded: !definition,
+      resumeEvidence: [analysis.evidence],
+      skillInferences: analysis.skills,
+      skillRoleRelevance: analysis.roleRelevance,
+    };
   };
 
   const remapEditedLabel = (activity: NormalizedActivity, editedLabel: string) => {
     const label = editedLabel.trim();
     if (!label) return;
-    const semantic = mapActivityToSemanticComponents(label);
-    const components = semantic.components.length
-      ? semantic.components
-      : [makeUnmappedComponent(label)];
-    const careerTransfers = mapActivityToCareers(components, careers);
-    const hasUnknown = careers.some((careerId) => careerTransfers[careerId]?.relationship === "unknown");
-    update(activity.id, {
-      canonicalId: components[0].canonicalActivityId,
-      label,
-      category: semantic.components.length ? semantic.category : activity.category,
-      components,
-      careerTransfers,
-      mappingStatus: semantic.components.length ? (hasUnknown ? "partial" : "mapped") : "unknown",
-    });
+    update(activity.id, analyseEditedText(activity, label), true);
   };
+
   const add = () => {
     const originalLabel = draft.trim();
     if (!originalLabel) return;
     const canonicalId = makeCustomActivityId(originalLabel);
     const base: NormalizedActivity = {
-      id: `evidence-${canonicalId}-${Date.now()}`,
+      id: `evidence-${canonicalId}-manual`,
       canonicalId,
       originalLabel,
       originalLabels: [originalLabel],
+      originalEvidence: [],
       label: originalLabel,
       category: "Other",
       sources: [],
@@ -63,86 +106,59 @@ export function ActivityOverviewScreen({ activities, careers, onChange, onContin
       mappingStatus: "unknown",
       userAdded: true,
     };
-    const mapped = mapNormalizedActivity(base, careers);
-    onChange([...activities, { ...base, ...mapped }]);
+    onChange(mergeNormalizedActivities([...activities, { ...base, ...analyseEditedText(base, originalLabel) }], careers));
     setDraft("");
-  };
-
-  const addComponent = (activity: NormalizedActivity) => {
-    const componentId = componentDrafts[activity.id];
-    const definition = getActivityDefinition(componentId);
-    if (!definition || activity.components.some((item) => item.canonicalActivityId === componentId)) return;
-    applyComponents(activity, [...activity.components, {
-      canonicalActivityId: definition.id,
-      label: definition.label,
-      evidenceType: "explicit",
-      confidence: "high",
-      rationale: "Confirmed by the user during evidence review.",
-      confirmedByUser: true,
-    }]);
-    setComponentDrafts((current) => ({ ...current, [activity.id]: "" }));
   };
 
   return (
     <section className="screen wide-screen">
-      <div className="eyebrow">Combined across your selected experiences</div>
-      <h1>What you&apos;ve already done</h1>
-      <p className="lead compact">We translated your original sentences into concise, transferable types of work. These groups are reading aids, not core career values or fit criteria. Open any activity to see the original wording and the explicit or inferred components behind it.</p>
+      <div className="eyebrow">Confirm your existing evidence</div>
+      <h1>Are these the activities you&apos;ve tried?</h1>
+      <p className="lead compact">We turned CV sentences into shorter activity names and grouped similar work together. These groups are navigation aids, not core career values or fit criteria. Edit anything unclear, remove anything incorrect, and add important work we missed.</p>
+      <p className="purpose-note"><strong>Why we&apos;re asking</strong><span>A CV suggestion is not yet a fact about you. Everything you leave on this screen will count as confirmed experience. We&apos;ll ask what you want more or less of later.</span></p>
       <div className="activity-groups">{categories.map((group) => {
         const grouped = activities.filter((activity) => activity.category === group);
         if (!grouped.length) return null;
         return (
-          <section className="activity-group" key={group}>
-            <h2>{group === "Other" ? "Other transferable work" : group}</h2>
+          <section className="activity-group" key={group} aria-labelledby={`activity-group-${group.replace(/\W+/g, "-").toLowerCase()}`}>
+            <header className="activity-group-header">
+              <h2 id={`activity-group-${group.replace(/\W+/g, "-").toLowerCase()}`}>{group === "Other" ? "Other activities" : group}</h2>
+              <span>{grouped.length} {grouped.length === 1 ? "activity" : "activities"}</span>
+            </header>
             <div>{grouped.map((activity) => (
               <article className="overview-activity semantic-overview-activity" key={activity.id}>
                 <div className="overview-activity-main">
-                  <label><span className="visually-hidden">Edit transferable wording</span><input aria-label={`Edit ${activity.label}`} value={activity.label} onChange={(event) => update(activity.id, { label: event.target.value })} onBlur={(event) => remapEditedLabel(activity, event.currentTarget.value)} /></label>
-
-                  <button type="button" onClick={() => onChange(activities.filter((item) => item.id !== activity.id))}>Remove</button>
+                  <label><span className="visually-hidden">Edit activity name</span><input aria-label={`Edit ${activity.label}`} value={activity.label} onChange={(event) => update(activity.id, { label: event.target.value })} onBlur={(event) => remapEditedLabel(activity, event.currentTarget.value)} /></label>
+                  <button type="button" aria-label={`Remove ${activity.label}`} onClick={() => onChange(activities.filter((item) => item.id !== activity.id))}>Remove</button>
                 </div>
                 <EvidenceProvenance activity={activity} />
-                {activity.mappingStatus === "unknown" && <p className="mapping-warning">Not yet mapped confidently. This means the evidence is unclear, not that the work is unimportant. Edit the transferable wording or add a supported component below.</p>}
-                <details className="semantic-details">
-                  <summary>Original wording, mapping and category</summary>
-                  <label className="semantic-category-control"><span>Activity group</span><select aria-label={`Category for ${activity.label}`} value={activity.category} onChange={(event) => update(activity.id, { category: event.target.value as ActivityCategory })}>{categories.map((item) => <option key={item}>{item}</option>)}</select></label>
-                  <div className="semantic-original">
-                    <span>Original evidence</span>
-                    <q>{activity.originalLabel}</q>
-                    {activity.label !== activity.originalLabel && <button type="button" onClick={() => update(activity.id, { label: activity.originalLabel })}>Restore original wording</button>}
-                  </div>
-                  <div className="semantic-components">
-                    <span>Components to confirm</span>
-                    {activity.components.length ? <ul>{activity.components.map((component) => (
-                      <li key={component.canonicalActivityId}>
-                        <div><strong>{component.label}</strong><em>{component.confirmedByUser ? "Confirmed" : component.evidenceType === "explicit" ? "Explicit" : "Inferred"} · {component.confidence} confidence</em><p>{component.rationale}</p></div>
-                        <div className="semantic-component-actions">
-                          {!component.confirmedByUser && <button type="button" onClick={() => applyComponents(activity, activity.components.map((item) => item.canonicalActivityId === component.canonicalActivityId ? { ...item, confirmedByUser: true } : item))}>Confirm</button>}
-                          <button type="button" onClick={() => applyComponents(activity, activity.components.filter((item) => item.canonicalActivityId !== component.canonicalActivityId))}>Reject</button>
-                        </div>
-                      </li>
-                    ))}</ul> : <p>No supported component has been confirmed yet.</p>}
-                    <div className="semantic-component-add">
-                      <select aria-label={`Add a transferable component to ${activity.label}`} value={componentDrafts[activity.id] ?? ""} onChange={(event) => setComponentDrafts((current) => ({ ...current, [activity.id]: event.target.value }))}>
-                        <option value="">Add a missing component…</option>
-                        {activityCatalog.filter((definition) => !activity.components.some((item) => item.canonicalActivityId === definition.id)).map((definition) => <option value={definition.id} key={definition.id}>{definition.label}</option>)}
-                      </select>
-                      <button type="button" disabled={!componentDrafts[activity.id]} onClick={() => addComponent(activity)}>Add</button>
-                    </div>
-                  </div>
-                </details>
+                {((activity.originalEvidence?.length ?? 0) > 0 || activity.originalLabels.length > 0) && (
+                  <details className="semantic-details">
+                    <summary>See original CV wording</summary>
+                    <ul className="semantic-original-list">
+                      {(activity.originalEvidence?.length ?? 0) > 0
+                        ? activity.originalEvidence!.map((evidence) => (
+                            <li key={`${evidence.experienceId}-${evidence.label}`}>
+                              <strong>{evidence.title}{evidence.organisation ? ` - ${evidence.organisation}` : ""}</strong>
+                              <q>{evidence.label}</q>
+                            </li>
+                          ))
+                        : activity.originalLabels.map((label) => <li key={label}><q>{label}</q></li>)}
+                    </ul>
+                  </details>
+                )}
               </article>
             ))}</div>
           </section>
         );
       })}</div>
       <div className="add-overview-activity">
-        <h2>Add an important missing activity</h2>
-        <p>Write one sentence. We&apos;ll turn it into a concise transferable activity while preserving your wording.</p>
-        <div><input value={draft} placeholder="e.g. Liaised with government authorities to deliver a programme" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add(); } }} /><button className="button secondary" type="button" onClick={add} disabled={!draft.trim()}>Add</button></div>
+        <h2>Add a missing activity</h2>
+        <p>Use one sentence for one type of work. We&apos;ll keep your original wording and show the shorter activity label separately.</p>
+        <div><input aria-label="Missing activity" value={draft} placeholder="For example: Liaised with government authorities to deliver a programme" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add(); } }} /><button className="button secondary" type="button" onClick={add} disabled={!draft.trim()}>Add activity</button></div>
       </div>
-      <div className="overview-note"><strong>{activities.length} transferable activity areas found.</strong><span>Next, we&apos;ll select no more than 10 that are most useful for comparing your two roles.</span></div>
-      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!activities.length} onClick={onContinue}>Start evidence review <span aria-hidden="true">→</span></button></div>
+      <div className="overview-note"><strong>{activities.length} activities ready to confirm.</strong><span>Next, we&apos;ll select no more than 10 and review them group by group.</span></div>
+      <div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back to experiences</button><button className="button primary" type="button" disabled={!activities.length} onClick={onContinue}>Confirm my activities <span aria-hidden="true">-&gt;</span></button></div>
     </section>
   );
 }

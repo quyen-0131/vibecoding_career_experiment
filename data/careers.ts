@@ -1,3 +1,5 @@
+import { getActivityDefinition } from "@/data/activityCatalog";
+
 export type CareerImportance = "Core" | "Important" | "Supporting" | "Limited";
 
 export type CareerActivity = {
@@ -46,7 +48,7 @@ const activity = (
   aliases: string[] = [],
   underlyingCapabilities: string[] = [label],
   typicalDeliverables: string[] = [],
-): CareerActivity => ({ id, label, importance, description, aliases, underlyingCapabilities, typicalDeliverables });
+): CareerActivity => ({ id, label: getActivityDefinition(id)?.label ?? label, importance, description, aliases, underlyingCapabilities, typicalDeliverables });
 
 export const careerModels: CareerModel[] = [
   {
@@ -62,13 +64,17 @@ export const careerModels: CareerModel[] = [
       activity("problem-framing", "Problem framing", "Core", "Product managers turn ambiguous user and business needs into clear product problems."),
       activity("product-prioritisation", "Product prioritisation", "Core", "Product managers choose which opportunities deserve attention and make trade-offs across competing needs."),
       activity("product-strategy", "Product strategy development", "Core", "Product managers develop and communicate a product direction by connecting user problems, market context, business goals and product capabilities. Strategy work helps teams decide which outcomes to pursue, which opportunities to defer and how near-term choices support a coherent direction.", ["strategy development", "product direction"], ["strategic reasoning", "opportunity framing"], ["product strategy", "strategy narrative"]),
+      activity("strategic-recommendations", "Strategic recommendations", "Important", "Product managers turn user, market, business and product evidence into a recommended direction. They explain the trade-offs and why the team should pursue that course of action.", ["product recommendation", "recommended direction"], ["evidence synthesis", "strategic reasoning", "trade-off communication"], ["decision recommendation", "strategy memo"]),
       activity("stakeholder-communication", "Stakeholder communication", "Core", "Product managers align design, engineering and business partners around decisions and priorities."),
+      activity("client-presentation", "Stakeholder presentations", "Important", "Product managers present evidence, decisions and recommendations to stakeholders so teams can align and move work forward."),
       activity("product-delivery", "Product delivery and iteration", "Core", "Product managers guide work from an initial decision through delivery, learning and iteration."),
       activity("user-research", "User research", "Important", "Product managers use user evidence to understand problems, needs and product opportunities."),
       activity("insight-synthesis", "Insight synthesis", "Important", "Product managers combine user, market and product evidence to clarify priorities."),
       activity("metrics-analysis", "Metrics analysis", "Important", "Product managers use product metrics to understand behaviour, performance and outcomes."),
-      activity("quantitative-data-analysis", "Quantitative data analysis", "Important", "Product managers analyse or interpret quantitative evidence to understand users, product performance and trade-offs. Deep analysis may be shared with analysts, but using data in decisions is a substantial part of the role."),
-      activity("product-launch-planning", "Product launch planning", "Important", "Product managers coordinate the evidence, decision materials and cross-functional work needed to introduce a product or feature."),
+      activity("quantitative-data-analysis", "Quantitative data analysis", "Important", "Product managers use quantitative evidence to spot product-performance patterns, compare options and judge whether a change worked."),
+      activity("behavioural-analysis", "Behavioural analysis", "Supporting", "Product managers examine behaviour patterns to understand user problems and identify product opportunities."),
+      activity("programming", "Programming and data tooling", "Supporting", "Technical fluency helps product managers discuss feasibility, data and trade-offs with engineering."),
+      activity("product-launch-planning", "Product launch planning", "Important", "This work aligns the launch goal, target users, team readiness and measures of success before a product or feature reaches users."),
       activity("enablement-materials", "Product decision and launch materials", "Supporting", "Product managers create briefs, recommendations and launch materials that help teams understand a product direction."),
       activity("technical-tradeoffs", "Technical trade-offs", "Important", "Product managers balance user value, business goals and engineering constraints."),
       activity("engineering-collaboration", "Working with engineering", "Important", "Product managers work closely with engineers to shape feasible solutions and delivery choices."),
@@ -100,7 +106,7 @@ export const careerModels: CareerModel[] = [
       activity("causal-evaluation", "Causal evaluation", "Important", "Consultants assess whether observed effects are plausibly caused by an intervention."),
       activity("quantitative-data-analysis", "Data analysis", "Important", "Behavioural data is analysed to understand patterns and evaluate interventions."),
       activity("insight-synthesis", "Insight synthesis", "Important", "Research evidence and behavioural theory are combined into a clear explanation."),
-      activity("client-communication", "Client communication", "Important", "Consultants explain evidence, limitations and recommendations to client teams."),
+      activity("stakeholder-communication", "Stakeholder and client communication", "Important", "Behavioural consultants gather context from clients and explain evidence, limitations and recommendations."),
       activity("strategic-recommendations", "Strategic recommendations", "Supporting", "Behavioural findings are translated into choices a client can implement."),
     ],
   },
@@ -179,9 +185,12 @@ export const careerModels: CareerModel[] = [
     activities: [
       activity("problem-framing", "Problem structuring", "Core", "Consultants break ambiguous business questions into a tractable work plan."),
       activity("strategic-recommendations", "Strategy development and recommendations", "Core", "Management consultants develop a defensible strategic point of view by integrating client objectives, qualitative and quantitative evidence, alternatives and implementation constraints. They explain what the client should do, why that direction is preferable and what trade-offs or risks it creates.", ["strategy development", "recommendation development"], ["structured problem-solving", "evidence synthesis", "option evaluation"], ["strategic recommendation", "executive memo"]),
-      activity("client-communication", "Client communication", "Core", "Consultants work directly with client teams throughout an engagement."),
+      activity("stakeholder-communication", "Stakeholder and client communication", "Core", "Consultants gather evidence from clients and stakeholders, align expectations and communicate recommendations."),
       activity("client-presentation", "Client presentations", "Core", "Consultants present evidence and persuade senior stakeholders to act."),
       activity("quantitative-data-analysis", "Business data analysis", "Important", "Market, financial and operational data is analysed to support recommendations."),
+      activity("metrics-analysis", "Metrics and performance analysis", "Important", "Consultants use organisational, operational and outcome metrics to diagnose performance and assess whether recommendations are working."),
+      activity("behavioural-analysis", "Behavioural analysis", "Important", "Consultants examine customer, employee or organisational behaviour to diagnose problems and shape recommendations."),
+      activity("programming", "Programming and data tooling", "Supporting", "Data tools can support consulting analysis, automation and evidence-based recommendations."),
       activity("market-sizing", "Market sizing", "Important", "Consultants estimate market opportunities and the assumptions behind them."),
       activity("financial-analysis", "Financial analysis", "Important", "Business cases and financial implications often shape strategic choices."),
       activity("insight-synthesis", "Insight synthesis", "Important", "Consultants combine interviews, data and market evidence into a coherent answer."),
@@ -190,6 +199,7 @@ export const careerModels: CareerModel[] = [
       activity("enablement-materials", "Decision materials and toolkits", "Important", "Consultants turn research and recommendations into clear toolkits, reports and materials that support client decisions or implementation."),
       activity("programme-design", "Programme and initiative design", "Important", "Consultants may design programmes or initiatives that translate a diagnosis into coordinated action."),
       activity("programme-evaluation", "Programme evaluation", "Important", "Consultants assess whether programmes achieved intended outcomes and what should change."),
+      activity("user-research", "Customer and user research", "Important", "Management consultants use customer and user research to understand needs, behaviour and market context before diagnosing a client problem or developing recommendations."),
       activity("qualitative-research", "Qualitative research", "Important", "Consultants use interviews and qualitative evidence to understand markets, organisations and stakeholder perspectives.", ["interview research"], ["evidence gathering"], ["interview guide", "research notes"]),
       activity("interviewing", "Client and stakeholder interviews", "Important", "Consultants conduct interviews to develop and test an understanding of the client problem.", ["expert interviews", "client interviews"], ["questioning", "active listening"], ["interview notes"]),
       activity("structured-problem-solving", "Structured problem-solving", "Core", "Consultants break an ambiguous problem into clear questions and testable lines of analysis.", ["issue tree", "structured framework"], ["problem structuring"], ["workplan"]),
@@ -331,9 +341,9 @@ export function getCareerActivity(careerId: CareerId, activityId: string): Caree
   const career = getCareerModel(careerId);
   return career?.activities.find((item) => item.id === activityId) ?? {
     id: activityId,
-    label: "Transferable activity",
+    label: getActivityDefinition(activityId)?.label ?? "Activity without a specific mapping",
     importance: "Limited",
-    description: `This activity may transfer to ${career?.title ?? "this role"}, but it is not currently mapped as a defining part of the role.`,
+    description: `The current prototype does not yet have a specific ${career?.title ?? "career"} mapping for this activity.`,
   };
 }
 

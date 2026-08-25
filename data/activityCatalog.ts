@@ -14,7 +14,7 @@ export const activityCatalog: ActivityDefinition[] = [
   { id: "research-design", label: "Research design", category: "Research", patterns: [/research design/i, /design(?:ed|ing)?\s+.*(study|research|survey)/i, /research method/i] },
   { id: "market-research", label: "Market research", category: "Research", patterns: [/market research/i, /competitive research/i, /market landscape/i, /competitor analysis/i] },
   { id: "usability-testing", label: "Usability testing", category: "Research", patterns: [/usability test/i, /prototype test/i, /user test/i] },
-  { id: "behavioural-analysis", label: "Behavioural analysis", category: "Research", patterns: [/behavioural analys/i, /behavioral analys/i, /decision pattern/i, /behavioural insight/i, /behavioral insight/i] },
+  { id: "behavioural-analysis", label: "Behavioural analysis", category: "Analysis", patterns: [/behavioural analys/i, /behavioral analys/i, /decision pattern/i, /behavioural insight/i, /behavioral insight/i] },
   { id: "behavioural-hypothesis", label: "Behavioural hypothesis development", category: "Research", patterns: [/behavioural hypothes/i, /behavioral hypothes/i, /behavioural mechanism/i, /behavioral mechanism/i] },
   { id: "survey-design", label: "Survey design", category: "Research", patterns: [/survey design/i, /designed\s+.*survey/i, /questionnaire design/i] },
   { id: "quantitative-data-analysis", label: "Quantitative data analysis", category: "Analysis", patterns: [/quantitative analys/i, /data analys/i, /analy[sz](?:e|ed|ing)\s+.*data/i, /statistical analys/i, /survey data/i] },
@@ -29,8 +29,7 @@ export const activityCatalog: ActivityDefinition[] = [
   { id: "market-sizing", label: "Market sizing", category: "Analysis", patterns: [/market siz/i, /total addressable market/i, /tam analysis/i] },
   { id: "financial-analysis", label: "Financial analysis", category: "Analysis", patterns: [/financial analys/i, /financial model/i, /business case/i, /revenue model/i] },
   { id: "client-presentation", label: "Client presentations", category: "Communication", patterns: [/presented\s+.*client/i, /client presentation/i, /presented findings/i, /presented recommendations/i] },
-  { id: "client-communication", label: "Client communication", category: "Communication", patterns: [/client communication/i, /work(?:ed|ing)?\s+with\s+.*clients?/i, /advised clients/i, /client-facing/i] },
-  { id: "stakeholder-communication", label: "Stakeholder communication", category: "Communication", patterns: [/stakeholder/i, /cross-functional/i, /aligned\s+.*team/i, /communicated\s+.*team/i, /liais(?:e|ed|ing)/i, /government authorit/i, /external partner/i] },
+  { id: "stakeholder-communication", label: "Stakeholder and client communication", category: "Communication", patterns: [/client communication/i, /work(?:ed|ing)?\s+with\s+.*clients?/i, /advised clients/i, /client-facing/i, /stakeholder/i, /cross-functional/i, /aligned\s+.*team/i, /communicated\s+.*team/i, /liais(?:e|ed|ing)/i, /government authorit/i, /external partner/i] },
   { id: "programme-design", label: "Programme design", category: "Planning & Design", patterns: [/program(?:me)? development/i, /design(?:ed|ing)?\s+.*program(?:me)?/i, /course design/i, /learning design/i] },
   { id: "programme-implementation", label: "Programme implementation", category: "Execution", patterns: [/program(?:me)?\s+(?:implementation|delivery)/i, /implement(?:ed|ing)?\s+.*program(?:me)?/i, /deliver(?:ed|ing)?\s+.*program(?:me)?/i] },
   { id: "programme-evaluation", label: "Programme evaluation", category: "Analysis", patterns: [/program(?:me)? evaluation/i, /evaluat(?:e|ed|ing)\s+.*program(?:me)?/i] },
@@ -58,7 +57,7 @@ export const activityCatalog: ActivityDefinition[] = [
     ],
   },
   { id: "product-delivery", label: "Product delivery and iteration", category: "Execution", patterns: [/product delivery/i, /shipped\s+.*product/i, /product iteration/i, /release plan/i] },
-  { id: "programming", label: "Programming and data tooling", category: "Execution", patterns: [/python/i, /sql/i, /javascript/i, /programming/i, /software development/i] },
+  { id: "programming", label: "Programming and data tooling", category: "Analysis", patterns: [/python/i, /sql/i, /javascript/i, /programming/i, /software development/i] },
   { id: "problem-framing", label: "Problem framing", category: "Product & Strategy", patterns: [/problem fram/i, /defined\s+.*problem/i, /structured\s+.*problem/i, /problem statement/i, /(?:customer|user)(?:s['â€™]|['â€™]s|s)?\s+(?:needs?|problems?|pain points?)\s+(?:identification|discovery)/i] },
   { id: "product-prioritisation", label: "Product prioritisation", category: "Product & Strategy", patterns: [/product priorit/i, /roadmap priorit/i, /prioritised\s+.*feature/i, /prioritized\s+.*feature/i] },
   { id: "strategic-recommendations", label: "Strategic recommendations", category: "Product & Strategy", patterns: [/strategic recommendation/i, /strategy recommendation/i, /recommended\s+.*strategy/i, /business recommendation/i] },
@@ -81,7 +80,8 @@ export const activityCatalog: ActivityDefinition[] = [
 ];
 
 export function getActivityDefinition(id: string) {
-  return activityCatalog.find((activity) => activity.id === id);
+  const canonicalId = id === "client-communication" ? "stakeholder-communication" : id;
+  return activityCatalog.find((activity) => activity.id === canonicalId);
 }
 
 export function makeCustomActivityId(label: string) {

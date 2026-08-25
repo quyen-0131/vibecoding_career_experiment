@@ -1,0 +1,142 @@
+[
+  {
+    "id": "case-01",
+    "text": "Enhanced case-processing efficiency by 30% across 2,000 cases by optimising audit and reporting workflows.",
+    "expectedSkillId": "process-improvement"
+  },
+  {
+    "id": "case-02",
+    "text": "Interviewed customers to understand unmet needs before defining the product roadmap.",
+    "expectedSkillId": "user-research"
+  },
+  {
+    "id": "case-03",
+    "text": "Assessed the community's needs and translated findings into funding priorities.",
+    "expectedSkillId": "needs-assessment"
+  },
+  {
+    "id": "case-04",
+    "text": "Designed qualitative and quantitative research across five international projects.",
+    "expectedSkillId": "research-design"
+  },
+  {
+    "id": "case-05",
+    "text": "Conducted in-depth interviews and focus groups to explore student motivation.",
+    "expectedSkillId": "qualitative-research"
+  },
+  {
+    "id": "case-06",
+    "text": "Analysed survey data using R and identified statistically significant patterns.",
+    "expectedSkillId": "quantitative-data-analysis"
+  },
+  {
+    "id": "case-07",
+    "text": "Coded interview transcripts and identified recurring themes in participant feedback.",
+    "expectedSkillId": "qualitative-analysis"
+  },
+  {
+    "id": "case-08",
+    "text": "Synthesised customer interviews, market evidence and usage data into three recommendations.",
+    "expectedSkillId": "insight-synthesis"
+  },
+  {
+    "id": "case-09",
+    "text": "Structured an ambiguous retention challenge into a clear problem and workplan.",
+    "expectedSkillId": "problem-framing"
+  },
+  {
+    "id": "case-10",
+    "text": "Developed a learning strategy and roadmap aligned with organisational goals.",
+    "expectedSkillId": "strategy-development"
+  },
+  {
+    "id": "case-11",
+    "text": "Created a proposal that recommended a new service and secured funding approval.",
+    "expectedSkillId": "proposal-development"
+  },
+  {
+    "id": "case-12",
+    "text": "Wrote a strategic report that connected evidence to an executive recommendation.",
+    "expectedSkillId": "report-writing"
+  },
+  {
+    "id": "case-13",
+    "text": "Liaised with government authorities and delivery partners to align programme implementation.",
+    "expectedSkillId": "stakeholder-communication"
+  },
+  {
+    "id": "case-14",
+    "text": "Advised clients on research findings and presented recommendations to leadership.",
+    "expectedSkillId": "stakeholder-communication"
+  },
+  {
+    "id": "case-15",
+    "text": "Coordinated project timelines, owners and dependencies across three workstreams.",
+    "expectedSkillId": "project-coordination"
+  },
+  {
+    "id": "case-16",
+    "text": "Implemented a student support programme and coordinated delivery across partner sites.",
+    "expectedSkillId": "programme-implementation"
+  },
+  {
+    "id": "case-17",
+    "text": "Evaluated a community programme and measured changes in participation and outcomes.",
+    "expectedSkillId": "programme-evaluation"
+  },
+  {
+    "id": "case-18",
+    "text": "Created a product launch toolkit and coordinated go-to-market readiness.",
+    "expectedSkillId": "product-launch-planning"
+  },
+  {
+    "id": "case-19",
+    "text": "Designed and launched an onboarding course to improve new-hire capability.",
+    "expectedSkillId": "learning-design"
+  },
+  {
+    "id": "case-20",
+    "text": "Created a strategic roadmap that sequenced initiatives and dependencies.",
+    "expectedSkillId": "roadmap-planning"
+  },
+  {
+    "id": "case-21",
+    "text": "Gathered user requirements and translated them into clear specifications.",
+    "expectedSkillId": "requirements-clarification"
+  },
+  {
+    "id": "case-22",
+    "text": "Designed an experiment comparing two interventions to test a behavioural hypothesis.",
+    "expectedSkillId": "experimentation"
+  },
+  {
+    "id": "case-23",
+    "text": "Monitored retention and conversion metrics to identify performance trends.",
+    "expectedSkillId": "metrics-analysis"
+  },
+  {
+    "id": "case-24",
+    "text": "Used SQL and Python to query data and automate a recurring analysis.",
+    "expectedSkillId": "programming"
+  },
+  {
+    "id": "case-25",
+    "text": "Developed partnerships with vendors to expand programme delivery.",
+    "expectedSkillId": "partnership-development"
+  },
+  {
+    "id": "case-26",
+    "text": "Facilitated workshops that helped stakeholders agree on priorities.",
+    "expectedSkillId": "facilitation"
+  },
+  {
+    "id": "case-27",
+    "text": "Streamlined reporting procedures, reducing turnaround time by 40%.",
+    "expectedSkillId": "process-improvement"
+  },
+  {
+    "id": "case-28",
+    "text": "Prepared a business case recommending investment in a new customer service model.",
+    "expectedSkillId": "proposal-development"
+  }
+]

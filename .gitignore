@@ -8,3 +8,8 @@
 .DS_Store
 .env*
 !.env.example
+
+/data/raw/onet/*.xlsx
+/.tmp/
+/tmp/
+/scripts/__pycache__/

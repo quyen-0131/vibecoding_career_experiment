@@ -20,8 +20,13 @@ function loadTypeScriptModule(relativePath) {
     fileName: filename,
   }).outputText;
   const localRequire = (specifier) => {
-    if (specifier.startsWith("@/")) return loadTypeScriptModule(`${specifier.slice(2)}.ts`);
-    if (specifier.startsWith(".")) return loadTypeScriptModule(`${resolve(dirname(filename), specifier)}.ts`);
+    if (specifier.startsWith("@/")) {
+      const target = specifier.slice(2);
+      return target.endsWith(".json") ? nodeRequire(resolve(root, target)) : loadTypeScriptModule(`${target}.ts`);
+    }
+    if (specifier.startsWith(".")) {
+      return specifier.endsWith(".json") ? nodeRequire(resolve(dirname(filename), specifier)) : loadTypeScriptModule(`${resolve(dirname(filename), specifier)}.ts`);
+    }
     return nodeRequire(specifier);
   };
   new Function("require", "module", "exports", output)(localRequire, loadedModule, loadedModule.exports);
@@ -32,9 +37,9 @@ const { sampleCvText, sampleExperiences } = loadTypeScriptModule("data/prototype
 const { extractActivitiesFromExperience, extractExperiencesFromCv, isValidExperienceTitle } = loadTypeScriptModule("lib/extraction/extractExperiencesFromCv.ts");
 const { joinPdfPageTexts, reconstructPdfPageText } = loadTypeScriptModule("lib/pdf/reconstructPdfPageText.ts");
 const { createManualActivity, parsePastedActivities } = loadTypeScriptModule("lib/extraction/parseManualActivities.ts");
-const { normalizeActivities } = loadTypeScriptModule("lib/evidence/normalizeActivities.ts");
+const { mergeNormalizedActivities, normalizeActivities } = loadTypeScriptModule("lib/evidence/normalizeActivities.ts");
 const { mapActivityToSemanticComponents, mapActivityToCareers, mapNormalizedActivity } = loadTypeScriptModule("lib/evidence/semanticActivityMapping.ts");
-const { selectTopEvidenceActivities } = loadTypeScriptModule("lib/evidence/selectTopEvidenceActivities.ts");
+const { applyPreferenceToActivityGroup, getEvidenceActivityGroups, selectTopEvidenceActivities, sortActivitiesForGroupedReview } = loadTypeScriptModule("lib/evidence/selectTopEvidenceActivities.ts");
 const { buildCareerEvidenceMatrix } = loadTypeScriptModule("lib/evidence/buildCareerEvidenceMatrix.ts");
 const { buildStartingEvidence } = loadTypeScriptModule("lib/evidence/buildStartingEvidence.ts");
 const { generateUncertaintyChoices } = loadTypeScriptModule("lib/evidence/generateUncertaintyChoices.ts");
@@ -230,7 +235,7 @@ test("one manual experience stores four separately editable activities", () => {
     activities: labels.map((label, index) => createManualActivity(label, experienceId, `manual-activity-${index + 1}`)),
   };
   assert.equal(experience.activities.length, 4);
-  assert.deepEqual(experience.activities.map((activity) => activity.canonicalId), ["report-writing", "quantitative-data-analysis", "client-communication", "research-design"]);
+  assert.deepEqual(experience.activities.map((activity) => activity.canonicalId), ["report-writing", "quantitative-data-analysis", "stakeholder-communication", "research-design"]);
 
   const normalized = normalizeActivities([experience]);
   assert.equal(normalized.length, 4);
@@ -294,12 +299,11 @@ test("selects no more than ten credible comparison activities", () => {
   assert.ok(behaviouralLeaning.length > 0);
 });
 
-test("career evidence matrix keeps preference and confidence separate", () => {
+test("career evidence matrix keeps past evidence, preference and career relevance separate", () => {
   const activities = normalizeActivities(sampleExperiences.slice(0, 2));
-  const responses = { [activities[0].id]: { preference: "more", confidence: "low" } };
+  const responses = { [activities[0].id]: { preference: "more" } };
   const rows = buildCareerEvidenceMatrix(activities, ["product-manager", "behavioural-science-consultant"], responses);
   assert.equal(rows[0].preference, "more");
-  assert.equal(rows[0].confidence, "low");
   assert.equal(rows[0].pastEvidence.recurrenceCount, activities[0].recurrenceCount);
   assert.ok(rows[0].careerRelevance["product-manager"]);
   assert.ok(rows[0].careerRelevance["behavioural-science-consultant"]);
@@ -397,8 +401,8 @@ test("transfer explanations adapt the source skill to each selected role", () =>
     originalLabel: "Learning and onboarding design",
     sources: [{ experienceId: "learning-role", title: "Learning Designer", organisation: "Example" }],
   }, ["product-manager", "behavioural-science-consultant"]);
-  assert.match(learning.careerTransfers["product-manager"].rationale, /onboarding journeys/i);
-  assert.match(learning.careerTransfers["behavioural-science-consultant"].rationale, /behavioural hypothesis/i);
+  assert.match(learning.careerTransfers["product-manager"].rationale, /onboarding journey/i);
+  assert.match(learning.careerTransfers["behavioural-science-consultant"].rationale, /reduce barriers/i);
   assert.notEqual(learning.careerTransfers["product-manager"].rationale, learning.careerTransfers["behavioural-science-consultant"].rationale);
 
   const roadmap = mapActivityToSemanticComponents("Creating a learning strategy roadmap");
@@ -429,9 +433,10 @@ test("starting evidence and gaps are generated independently for both roles", ()
   const mapSource = readFileSync(resolve(root, "components/screens/StartingEvidenceMapScreen.tsx"), "utf8");
   assert.doesNotMatch(pageSource, /PrioritySelectionScreen|priorityActivityIds/);
   assert.doesNotMatch(mapSource, />Priority|Role importance:|Your preference:|Your confidence:/);
-  assert.match(mapSource, /Core to this role/);
-  assert.match(mapSource, /Important in this role/);
-  assert.match(mapSource, /evidenceMeaning/);
+  assert.match(mapSource, /Core and important work in this career/);
+  assert.match(mapSource, /Important work still untested/);
+  assert.match(mapSource, /Preference:/);
+  assert.doesNotMatch(mapSource, /Evidence found in your resume/);
   const existing = ["user-research", "stakeholder-communication"];
   assert.ok(getRemainingEvidenceGaps("product-manager", existing).every((gap) => !existing.includes(gap.id)));
 });
@@ -462,8 +467,9 @@ test("evidence UI keeps dates optional, provenance concise and response order co
   assert.match(overviewSource, /"Other"/);
   assert.match(overviewSource, /not core career values or fit criteria/);
   assert.match(overviewSource, /remapEditedLabel\(activity, event\.currentTarget\.value\)/);
-  assert.match(overviewSource, /Original wording, mapping and category/);
-  assert.match(tunnelSource, /confidenceOptions = \["high", "medium", "low"\]/);
+  assert.match(overviewSource, /See original CV wording/);
+  assert.doesNotMatch(tunnelSource, /confidenceOptions|SkillConfidence/);
+  assert.match(tunnelSource, /More.*About the same.*Less/);
 });
 
 test("manual activity entry provides one-sentence text areas and career search", () => {
@@ -474,7 +480,7 @@ test("manual activity entry provides one-sentence text areas and career search",
   assert.match(experienceSource, /does not mean the role is irrelevant/);
   assert.match(experienceSource, /onExperiencesChange\(\(current\)/);
   assert.match(experienceSource, /onContinue\(experiences\)/);
-  assert.match(careerSource, /Search the prototype role catalogue/);
+  assert.match(careerSource, /Search roles/);
 });
 
 test("experience edits are passed directly into activity normalisation when continuing", () => {
@@ -484,8 +490,10 @@ test("experience edits are passed directly into activity normalisation when cont
 });
 test("global progress keeps the experiment inside step seven", () => {
   const progressSource = readFileSync(resolve(root, "components/Progress.tsx"), "utf8");
-  assert.match(progressSource, /"Evidence", "Experiment"/);
-  assert.match(progressSource, /Step \$\{step\} of 7/);
+  assert.match(progressSource, /Find your existing evidence/);
+  assert.match(progressSource, /Find your uncertainty/);
+  assert.match(progressSource, /Plan a career experiment/);
+  assert.match(progressSource, /aria-valuemax=\{7\}/);
   assert.doesNotMatch(progressSource, /Next prototype|Choose uncertainty|Confirm question/);
 });
 
@@ -550,7 +558,7 @@ test("development preview skips both AI evaluations with clearly labelled sample
     assert.ok(preview.roleTrials[role].revisionEvaluation);
   }
   const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
-  assert.match(screen, /Skip past both evaluations/);
+  assert.match(screen, /Use sample evaluation/);
   assert.match(screen, /without using API credit/);
   assert.match(screen, /process\.env\.NODE_ENV === "development"/);
 });
@@ -670,7 +678,7 @@ test("selected case is passed into attempts, evaluations and revision reminders"
   assert.match(screen, /getScenarioFields\(role, scenario\)/);
   assert.match(screen, /getScenarioContext\(role, scenario\)/);
   assert.match(screen, /Try another case/);
-  assert.match(screen, /Skip both evaluations for this case/);
+  assert.match(screen, /Use sample evaluation for this case/);
 });
 
 
@@ -721,4 +729,313 @@ test("process optimisation recognises varied resume phrasing without employer-sp
     assert.equal(mapped.normalizedLabel, "Process optimisation", example);
     assert.ok(mapped.components.some((component) => component.canonicalActivityId === "process-improvement"), example);
   }
+});
+test("keeps separate canonical activities from one CV sentence without duplicate labels", () => {
+  const supportingText = "Created a product launch toolkit including a survey and one-page recommendation.";
+  const experience = {
+    id: "launch-role",
+    title: "Launch Associate",
+    organisation: "Example",
+    type: "work",
+    activities: [
+      { id: "launch", canonicalId: "product-launch-planning", label: "Product launch planning", category: "Product & Strategy", supportingText },
+      { id: "materials", canonicalId: "enablement-materials", label: "Enablement and decision materials", category: "Written Work", supportingText },
+    ],
+  };
+  const normalized = normalizeActivities([experience], ["product-manager", "management-consultant"]);
+  assert.deepEqual(normalized.map((activity) => activity.label), ["Product launch planning", "Enablement and decision materials"]);
+  assert.deepEqual(normalized.map((activity) => activity.components.map((component) => component.canonicalActivityId)), [["product-launch-planning"], ["enablement-materials"]]);
+  assert.equal(new Set(normalized.map((activity) => activity.label)).size, normalized.length);
+});
+
+test("merges duplicate canonical activities while preserving wording for every source experience", () => {
+  const makeExperience = (id, title, organisation, wording) => ({
+    id,
+    title,
+    organisation,
+    type: "work",
+    activities: [{ id: `${id}-research`, canonicalId: "research-design", label: "Research design", category: "Research", supportingText: wording }],
+  });
+  const first = makeExperience("first-role", "Consultant", "Decision Lab", "Designed qualitative and quantitative research.");
+  const second = makeExperience("second-role", "Programme Consultant", "AEPD", "Designed community research with partner organisations.");
+  const normalized = normalizeActivities([first, second], ["product-manager", "management-consultant"]);
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].recurrenceCount, 2);
+  assert.deepEqual(normalized[0].originalEvidence.map(({ experienceId, label }) => ({ experienceId, label })), [
+    { experienceId: "first-role", label: "Designed qualitative and quantitative research." },
+    { experienceId: "second-role", label: "Designed community research with partner organisations." },
+  ]);
+
+  const duplicate = { ...normalized[0], id: "duplicate-copy" };
+  assert.equal(mergeNormalizedActivities([normalized[0], duplicate], ["product-manager", "management-consultant"]).length, 1);
+});
+
+test("evidence review orders activities by their visible category group", () => {
+  const activities = normalizeActivities(sampleExperiences.slice(0, 3), ["product-manager", "management-consultant"]);
+  const ordered = sortActivitiesForGroupedReview(activities);
+  const categoryOrder = ["Research", "Analysis", "Communication", "Planning & Design", "Product & Strategy", "Written Work", "Execution", "Other"];
+  const indexes = ordered.map((activity) => categoryOrder.indexOf(activity.category));
+  assert.deepEqual(indexes, [...indexes].sort((a, b) => a - b));
+  assert.equal(loadTypeScriptModule("data/activityCatalog.ts").getActivityDefinition("programming").category, "Analysis");
+});
+
+test("programme implementation uses a role-specific management consulting explanation", () => {
+  const activity = mapNormalizedActivity({
+    canonicalId: "programme-implementation",
+    originalLabel: "Implemented a student support programme",
+    sources: [{ experienceId: "programme-role", title: "Programme Coordinator", organisation: "Example" }],
+  }, ["product-manager", "management-consultant"]);
+  assert.match(activity.careerTransfers["management-consultant"].rationale, /implementation plan/i);
+  assert.match(activity.careerTransfers["management-consultant"].rationale, /owners, milestones, dependencies/i);
+  assert.doesNotMatch(activity.careerTransfers["product-manager"].rationale, /quantitative evidence/i);
+});
+
+test("an explicit no-reflection response does not generate a false interpretation", () => {
+  assert.equal(interpretComparisonReflection("I do not have any reflection", ["product-manager", "management-consultant"]), undefined);
+  assert.equal(interpretComparisonReflection("Nothing to add", ["product-manager", "management-consultant"]), undefined);
+});
+
+test("review UI names the current activity group and separates role evaluations", () => {
+  const tunnelSource = readFileSync(resolve(root, "components/screens/EvidenceTunnelScreen.tsx"), "utf8");
+  const experimentSource = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  const mapSource = readFileSync(resolve(root, "components/screens/StartingEvidenceMapScreen.tsx"), "utf8");
+  assert.match(tunnelSource, /Review one type of work at a time/);
+  assert.match(tunnelSource, /group.activities/);
+  assert.match(experimentSource, /role-review-banner/);
+  assert.match(experimentSource, /role-synthesis-tone/);
+  assert.doesNotMatch(mapSource, /unanswered question/i);
+});
+test("user and customer research transfers directly to management consulting", () => {
+  const research = mapActivityToSemanticComponents("User and customer research");
+  const transfers = mapActivityToCareers(research.components, ["product-manager", "management-consultant"]);
+  assert.equal(transfers["management-consultant"].importance, "Important");
+  assert.equal(transfers["management-consultant"].relationship, "direct");
+  assert.match(transfers["management-consultant"].rationale, /diagnosing a client problem|recommendations/i);
+});
+
+test("known activities keep their own meaning when a sentence implies neighbouring skills", () => {
+  const experience = {
+    id: "meaning-test",
+    title: "Consultant",
+    organisation: "Example",
+    type: "work",
+    activities: [
+      { id: "behaviour", canonicalId: "behavioural-analysis", label: "Behavioural analysis", category: "Analysis", supportingText: "Analysed behavioural data" },
+      { id: "client", canonicalId: "client-communication", label: "Client communication", category: "Communication", supportingText: "Advised client stakeholders" },
+      { id: "stakeholder", canonicalId: "stakeholder-communication", label: "Stakeholder communication", category: "Communication", supportingText: "Aligned external stakeholders" },
+      { id: "programming", canonicalId: "programming", label: "Programming and data tooling", category: "Analysis", supportingText: "Used SQL for analysis" },
+    ],
+  };
+  const normalized = normalizeActivities([experience], ["product-manager", "management-consultant"]);
+  const behavioural = normalized.find((activity) => activity.canonicalId === "behavioural-analysis");
+  assert.ok(behavioural);
+  assert.match(behavioural.careerTransfers["product-manager"].rationale, /behaviour patterns/i);
+  assert.match(behavioural.careerTransfers["management-consultant"].rationale, /customer, employee or organisational behaviour/i);
+  assert.doesNotMatch(behavioural.careerTransfers["product-manager"].rationale, /quantitative evidence/i);
+
+  const communication = normalized.filter((activity) => activity.canonicalId === "stakeholder-communication");
+  assert.equal(communication.length, 1);
+  assert.equal(communication[0].label, "Stakeholder and client communication");
+  assert.equal(communication[0].careerTransfers["management-consultant"].importance, "Core");
+
+  const programming = normalized.find((activity) => activity.canonicalId === "programming");
+  assert.ok(programming.careerTransfers["product-manager"].rationale.length < 140);
+  assert.ok(programming.careerTransfers["management-consultant"].rationale.length < 140);
+});
+
+test("starting evidence keeps grouped role work above untested work without a duplicate evidence list", () => {
+  const activities = normalizeActivities(sampleExperiences.slice(0, 4), ["product-manager", "management-consultant"]);
+  const evidence = buildStartingEvidence("product-manager", activities, {});
+  assert.ok(evidence.coreActivities.length <= 5);
+  assert.ok(evidence.transfers.length <= 5);
+  assert.ok(evidence.matchedCount >= evidence.transfers.length);
+  const screen = readFileSync(resolve(root, "components/screens/StartingEvidenceMapScreen.tsx"), "utf8");
+  assert.ok(screen.indexOf("Core and important work in this career") < screen.indexOf("Important work still untested"));
+  assert.doesNotMatch(screen, /Evidence found in your resume/);
+  assert.match(screen, /Core and important work in this career/);
+});
+
+const { extractResumeEvidence } = loadTypeScriptModule("lib/evidence/extractResumeEvidence.ts");
+const { inferSkills } = loadTypeScriptModule("lib/skills/inferSkills.ts");
+const { resolveRole, resolveCareerId } = loadTypeScriptModule("lib/roles/resolveRole.ts");
+const { assessSkillRoleRelevance } = loadTypeScriptModule("lib/roles/assessSkillRoleRelevance.ts");
+const evidenceFixtures = JSON.parse(readFileSync(resolve(root, "data/fixtures/resume-evidence-cases.json"), "utf8"));
+
+test("canonical skill inference covers varied resume evidence without flattening provenance", () => {
+  assert.ok(evidenceFixtures.length >= 20);
+  evidenceFixtures.forEach((fixture) => {
+    const evidence = extractResumeEvidence(fixture.text, {
+      experienceId: fixture.id,
+      title: "Fixture role",
+      organisation: "Fixture organisation",
+    });
+    const skills = inferSkills(evidence);
+    assert.ok(
+      skills.some((skill) => skill.skillId === fixture.expectedSkillId),
+      `${fixture.id}: expected ${fixture.expectedSkillId}; received ${skills.map((skill) => skill.skillId).join(", ") || "none"}`,
+    );
+    assert.equal(evidence.rawText, fixture.text);
+    assert.equal(skills.find((skill) => skill.skillId === fixture.expectedSkillId).sourceEvidenceIds[0], evidence.id);
+  });
+});
+
+test("structured evidence separates action, object, outcome and metrics", () => {
+  const evidence = extractResumeEvidence(
+    "Enhanced case-processing efficiency by 30% across 2,000 cases by optimising audit and reporting workflows.",
+  );
+  assert.equal(evidence.action, "enhance");
+  assert.match(evidence.object, /case-processing efficiency/i);
+  assert.deepEqual(evidence.metrics, ["30%", "2,000"]);
+  assert.equal(evidence.strength, "strong");
+});
+
+test("the same evidence receives role-specific relevance rather than a generic fit result", () => {
+  const evidence = extractResumeEvidence("Analysed customer behaviour data using R.");
+  const skill = inferSkills(evidence).find((item) => item.skillId === "quantitative-data-analysis");
+  assert.ok(skill);
+  const dataScience = assessSkillRoleRelevance(skill, resolveCareerId("data-scientist"));
+  const uxResearch = assessSkillRoleRelevance(skill, resolveCareerId("ux-researcher"));
+  assert.equal(dataScience.importance, "Core");
+  assert.equal(uxResearch.importance, "Supporting");
+  assert.notEqual(dataScience.explanation, uxResearch.explanation);
+});
+
+test("modern curated roles and arbitrary O*NET titles resolve without replacing the user's label", () => {
+  const product = resolveRole({ id: "product-manager", title: "Product Manager" });
+  assert.equal(product.status, "curated");
+  assert.equal(product.requestedTitle, "Product Manager");
+  assert.ok(product.occupations.length >= 3);
+
+  const arbitrary = resolveRole({ title: "Human Resources Specialists" });
+  assert.equal(arbitrary.requestedTitle, "Human Resources Specialists");
+  assert.ok(["exact", "related"].includes(arbitrary.status));
+  assert.ok(arbitrary.occupations.length >= 1);
+
+  const provisional = resolveRole({ title: "Quantum Mermaid Strategist" });
+  assert.equal(provisional.requestedTitle, "Quantum Mermaid Strategist");
+  assert.equal(provisional.status, "provisional");
+});
+
+test("generated O*NET index contains occupation tasks and skills but no career-fit score", () => {
+  const generated = JSON.parse(readFileSync(resolve(root, "data/generated/onet-occupations.json"), "utf8"));
+  assert.equal(generated.occupations.length, 1016);
+  const managementAnalysts = generated.occupations.find((item) => item.id === "13-1111.00");
+  assert.ok(managementAnalysts.tasks.length > 0);
+  assert.ok(managementAnalysts.workActivities.length > 0);
+  const implementation = [
+    "lib/analysis/analyzeResumeEvidence.ts",
+    "lib/roles/assessSkillRoleRelevance.ts",
+    "lib/skills/inferSkills.ts",
+  ].map((file) => readFileSync(resolve(root, file), "utf8")).join("\n");
+  assert.doesNotMatch(implementation, /career.?fit|fit score|percent suited/i);
+});
+
+
+test("transferable lens covers metrics, presentations and product strategy across both roles", () => {
+  const roles = ["product-manager", "management-consultant"];
+  const metrics = mapNormalizedActivity({
+    canonicalId: "metrics-analysis",
+    originalLabel: "Measured organisational performance metrics",
+    sources: [{ experienceId: "metrics-role", title: "Analyst", organisation: "Example" }],
+  }, roles);
+  assert.equal(metrics.careerTransfers["management-consultant"].importance, "Important");
+  assert.match(metrics.careerTransfers["management-consultant"].rationale, /organisational|outcome metrics|performance/i);
+
+  const presentation = mapNormalizedActivity({
+    canonicalId: "client-presentation",
+    originalLabel: "Presented recommendations to stakeholders",
+    sources: [{ experienceId: "presentation-role", title: "Consultant", organisation: "Example" }],
+  }, roles);
+  assert.equal(presentation.careerTransfers["product-manager"].importance, "Important");
+  assert.match(presentation.careerTransfers["product-manager"].rationale, /stakeholders|align/i);
+
+  const strategy = mapNormalizedActivity({
+    canonicalId: "product-strategy",
+    originalLabel: "Developed a product strategy",
+    sources: [{ experienceId: "strategy-role", title: "Strategist", organisation: "Example" }],
+  }, roles);
+  assert.notEqual(strategy.careerTransfers["management-consultant"].relationship, "unknown");
+  assert.equal(strategy.careerTransfers["management-consultant"].careerActivityId, "strategic-recommendations");
+  assert.match(strategy.careerTransfers["management-consultant"].rationale, /evidence, choices and trade-offs/i);
+
+  const recommendation = mapNormalizedActivity({
+    canonicalId: "strategic-recommendations",
+    originalLabel: "Developed strategic recommendations",
+    sources: [{ experienceId: "recommendation-role", title: "Consultant", organisation: "Example" }],
+  }, roles);
+  assert.equal(recommendation.careerTransfers["product-manager"].relationship, "direct");
+  assert.equal(recommendation.careerTransfers["product-manager"].importance, "Important");
+  assert.match(recommendation.careerTransfers["product-manager"].rationale, /recommended direction|trade-offs/i);
+});
+
+test("starting evidence reports resume activity coverage without presenting an ability score", () => {
+  const experiences = [{
+    id: "coverage-role",
+    title: "Product Associate",
+    organisation: "Example",
+    type: "work",
+    activities: [
+      { id: "engineering", canonicalId: "engineering-collaboration", label: "Working with engineering", category: "Execution", supportingText: "Worked with engineering" },
+      { id: "presentation", canonicalId: "client-presentation", label: "Client presentations", category: "Communication", supportingText: "Presented to stakeholders" },
+    ],
+  }];
+  const activities = normalizeActivities(experiences, ["product-manager", "management-consultant"]);
+  const evidence = buildStartingEvidence("product-manager", activities, {});
+  const execution = evidence.activityGroups.find((group) => group.name === "Execution & collaboration");
+  assert.ok(execution);
+  assert.ok(execution.activities.some((activity) => activity.id === "engineering-collaboration" && activity.hasEvidence));
+  assert.ok(execution.representedCount > 0);
+  assert.equal(execution.coveragePercentage, Math.round((execution.representedCount / execution.totalCount) * 100));
+
+  const screen = readFileSync(resolve(root, "components/screens/StartingEvidenceMapScreen.tsx"), "utf8");
+  assert.match(screen, /resume activity coverage/i);
+  assert.match(screen, /role="progressbar"/i);
+  assert.match(screen, /past activity coverage, not ability or career fit/i);
+  assert.match(screen, /resume evidence you reviewed/i);
+  assert.match(screen, /activity\.importance/);
+  assert.match(screen, /Preference:/);
+  assert.match(screen, /No preference evidence/i);
+  assert.match(screen, /none of these career activities appeared in your reviewed resume evidence/i);
+  assert.doesNotMatch(screen, /skills acquired/i);
+});
+
+test("the evidence map receives only activities included in the grouped review", () => {
+  const page = readFileSync(resolve(root, "app/page.tsx"), "utf8");
+  assert.match(page, /StartingEvidenceMapScreen[^\n]+allActivities=\{topEvidenceActivities\}/);
+  assert.doesNotMatch(page, /StartingEvidenceMapScreen[^\n]+allActivities=\{normalizedActivities\}/);
+});
+
+
+test("evidence review collects one preference for each activity group", () => {
+  const experience = {
+    id: "analysis-role",
+    title: "Analyst",
+    organisation: "Example",
+    type: "work",
+    activities: [
+      { id: "quant", canonicalId: "quantitative-data-analysis", label: "Quantitative data analysis", category: "Analysis", supportingText: "Analysed survey data" },
+      { id: "metrics", canonicalId: "metrics-analysis", label: "Metrics and performance analysis", category: "Analysis", supportingText: "Reviewed performance metrics" },
+      { id: "programming", canonicalId: "programming", label: "Programming and data tooling", category: "Analysis", supportingText: "Used SQL" },
+      { id: "behaviour", canonicalId: "behavioural-analysis", label: "Behavioural analysis", category: "Analysis", supportingText: "Analysed behaviour patterns" },
+    ],
+  };
+  const activities = normalizeActivities([experience], ["product-manager", "management-consultant"]);
+  const groups = getEvidenceActivityGroups(activities);
+  const analysis = groups.find((group) => group.label === "Analysis");
+  assert.ok(analysis);
+  assert.equal(analysis.activities.length, 4);
+
+  const responses = applyPreferenceToActivityGroup({}, analysis, "more");
+  analysis.activities.forEach((activity) => {
+    assert.equal(responses[activity.id].preference, "more");
+    assert.equal(responses[activity.id].preferenceSource, "group");
+    assert.equal(responses[activity.id].groupId, "analysis");
+  });
+
+  const source = readFileSync(resolve(root, "components/screens/EvidenceTunnelScreen.tsx"), "utf8");
+  assert.match(source, /Review one type of work at a time/);
+  assert.match(source, /answer once for the group overall/);
+  assert.match(source, /What you have done/);
+  assert.match(source, /How this group appears in your career options/);
+  assert.doesNotMatch(source, /Review one activity at a time|Next activity/);
 });

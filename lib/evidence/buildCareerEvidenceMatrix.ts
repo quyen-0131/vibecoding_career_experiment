@@ -14,7 +14,6 @@ export type CareerEvidenceMatrixRow = {
   activity: NormalizedActivity;
   pastEvidence: { recurrenceCount: number; sourceExperienceIds: string[] };
   preference?: ActivityEvidenceResponse["preference"];
-  confidence?: ActivityEvidenceResponse["confidence"];
   careerRelevance: Record<CareerId, CareerTransfer>;
 };
 
@@ -30,7 +29,6 @@ export function buildCareerEvidenceMatrix(
       sourceExperienceIds: activity.sources.map((source) => source.experienceId),
     },
     preference: responses[activity.id]?.preference,
-    confidence: responses[activity.id]?.confidence,
     careerRelevance: Object.fromEntries(careers.map((careerId) => [careerId, activity.careerTransfers[careerId] ?? unknownTransfer(careerId)])) as Record<CareerId, CareerTransfer>,
   }));
 }
