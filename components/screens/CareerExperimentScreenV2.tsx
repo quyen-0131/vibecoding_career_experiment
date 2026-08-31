@@ -513,9 +513,11 @@ function buildDirectionalSignal(state: CareerExperimentState, testedRoles: Caree
     explanation: "Your repeat choice, task preference and activity reactions were mixed or similar. That is useful evidence: this exercise does not justify forcing a direction.",
   };
 
+  // The observation leads and the career name appears inside it as something
+  // the User said, not as a verdict we reached. See ADR 0001.
   return {
-    heading: `In this experiment, the preference signal leaned toward ${roleTrials[leaningRole].roleTitle}`,
-    explanation: `${reason} This is a direction from one supported exercise, not a conclusion about the whole career.`,
+    heading: reason,
+    explanation: "That is one preference, from one exercise, on one day. It is evidence about the work you just did - not a conclusion about which career suits you.",
   };
 }
 
@@ -721,12 +723,12 @@ function SummaryScreen({
         onContradictionCause={onContradictionCause}
       />
       <section className="directional-signal">
-        <span>What your preference evidence points to</span>
+        <span>What you said during the experiment</span>
         <h2>{directionalSignal.heading}</h2>
         <p>{directionalSignal.explanation}</p>
         <small>
-          This direction uses your repeat-task choice, post-support preference
-          and activity reactions. Rubric performance remains separate above.
+          This summarises your repeat-task choice, post-support preference and
+          activity reactions. Rubric performance remains separate above.
         </small>
       </section>
       {reflection && (

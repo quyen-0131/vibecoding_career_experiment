@@ -25,6 +25,14 @@ export type RankedUnknown = {
   importanceByCareer: Partial<Record<CareerId, CareerImportance>>;
   /** The Career Option that rates it higher. Absent when they agree. */
   leansToward?: CareerId;
+  /**
+   * Whether both careers actually state a rating for this activity. A career
+   * model that simply omits an activity reads as "Limited", so an unstated
+   * pair can look maximally separated when we just do not know. Only 20% of
+   * the career x activity grid is authored, so this matters most for the
+   * careers that are mapped least.
+   */
+  bothStated: boolean;
 };
 
 export type RankUnknownsInput = {
@@ -47,6 +55,8 @@ export function rankUnknownsBySeparation({ careers, confirmedActivityIds }: Rank
   );
 
   const ranked = [...candidateIds].map((activityId) => {
+    const statedA = getCareerModel(careerA)?.activities.some((activity) => activity.id === activityId) ?? false;
+    const statedB = getCareerModel(careerB)?.activities.some((activity) => activity.id === activityId) ?? false;
     const inA = getCareerActivity(careerA, activityId).importance;
     const inB = getCareerActivity(careerB, activityId).importance;
     const separation = Math.abs(importanceRank[inA] - importanceRank[inB]);
@@ -58,6 +68,7 @@ export function rankUnknownsBySeparation({ careers, confirmedActivityIds }: Rank
       separation,
       importanceByCareer: { [careerA]: inA, [careerB]: inB } as Partial<Record<CareerId, CareerImportance>>,
       leansToward: separation === 0 ? undefined : importanceRank[inA] > importanceRank[inB] ? careerA : careerB,
+      bothStated: statedA && statedB,
     };
   });
 
@@ -68,6 +79,8 @@ export function rankUnknownsBySeparation({ careers, confirmedActivityIds }: Rank
   // The career models carry no accessibility data yet, so that tie-break is
   // not applied; add a field per activity to enable it.
   return ranked.sort((a, b) => {
+    // A separation we can actually vouch for beats one inferred from silence.
+    if (a.bothStated !== b.bothStated) return a.bothStated ? -1 : 1;
     if (b.separation !== a.separation) return b.separation - a.separation;
     const stake = (unknown: RankedUnknown) => Math.max(...Object.values(unknown.importanceByCareer).map((importance) => importanceRank[importance!]));
     if (stake(b) !== stake(a)) return stake(b) - stake(a);

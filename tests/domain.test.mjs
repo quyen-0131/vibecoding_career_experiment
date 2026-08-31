@@ -635,8 +635,12 @@ test("experiment synthesis remains evidence-oriented and not a recommendation", 
   assert.match(getExperimentQuestionText(state), /same underlying problem/);
   const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
   assert.match(screen, /not a career recommendation/i);
-  assert.match(screen, /What your preference evidence points to/);
-  assert.match(screen, /preference signal leaned toward/);
+  // ADR 0001: the observation leads; a career name is evidence the user reasons
+  // from, never a conclusion we headline. "the preference signal leaned toward
+  // <career>" was the old heading and is exactly what the ADR forbids.
+  assert.match(screen, /What you said during the experiment/);
+  assert.doesNotMatch(screen, /preference signal leaned toward/);
+  assert.match(screen, /not a conclusion about which career suits you/);
   assert.doesNotMatch(screen, /Try another question/);
   assert.doesNotMatch(screen, /you should become|best career|career.?fit percentage|\d+% suited/i);
 });
@@ -1206,9 +1210,12 @@ const { rankUnknownsBySeparation, buildDirection } = loadTypeScriptModule("lib/e
 test("an unknown that separates the two careers outranks one they both value", () => {
   const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
   assert.ok(ranked.length > 0);
-  const separations = ranked.map((unknown) => unknown.separation);
-  assert.deepEqual(separations, [...separations].sort((a, b) => b - a), "ranked by separation, descending");
+  // Separation is descending within each confidence tier: ratings both careers
+  // state come first, then ones inferred from an unstated model.
+  const stated = ranked.filter((unknown) => unknown.bothStated).map((unknown) => unknown.separation);
+  assert.deepEqual(stated, [...stated].sort((a, b) => b - a), "stated separations are descending");
   assert.ok(ranked[0].separation > 0, "the top unknown actually distinguishes the two careers");
+  assert.ok(ranked[0].bothStated, "and both careers actually rate it");
 });
 
 test("work both careers treat identically never leads the ranking", () => {
@@ -1264,7 +1271,10 @@ test("an unanswered contradiction does not hijack the direction", () => {
 });
 
 test("direction ranking never reads experiment performance", () => {
-  const source = readFileSync(resolve(root, "lib/evidence/directionRanking.ts"), "utf8");
+  // Comments are prose: this module must describe ratings in order to explain
+  // that it never reads them. The rule is about the code.
+  const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const source = stripComments(readFileSync(resolve(root, "lib/evidence/directionRanking.ts"), "utf8"));
   assert.doesNotMatch(source, /rubric|evaluation|rating|criteri/i);
 });
 
@@ -1410,4 +1420,21 @@ Analysed customer data.
   assert.equal(experiences.length, 2);
   const consultant = experiences.find((experience) => experience.organisation === "Decision Lab");
   assert.ok(consultant.activities.length >= 2, "bullets continuing after a page break stay with their role");
+});
+
+test("a separation inferred from silence never outranks one both careers state", () => {
+  for (const careers of [["ux-researcher", "service-designer"], ["data-scientist", "business-analyst"], ["product-manager", "management-consultant"]]) {
+    const ranked = rankUnknownsBySeparation({ careers, confirmedActivityIds: [] });
+    assert.ok(ranked[0].bothStated, `${careers.join(" vs ")} must lead with a rating both careers actually state`);
+    const firstAssumed = ranked.findIndex((unknown) => !unknown.bothStated);
+    const lastStated = ranked.map((unknown) => unknown.bothStated).lastIndexOf(true);
+    if (firstAssumed >= 0) assert.ok(firstAssumed > lastStated, "stated ratings all come before assumed ones");
+  }
+});
+
+test("an unmapped activity is recorded as assumed, not as a real difference", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const assumed = ranked.filter((unknown) => !unknown.bothStated);
+  assert.ok(assumed.length > 0, "the career models are only partly authored, so some pairs are unstated");
+  assert.ok(assumed.every((unknown) => typeof unknown.separation === "number"));
 });

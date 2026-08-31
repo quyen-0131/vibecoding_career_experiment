@@ -59,7 +59,7 @@ commit 5144522.
 
 ## Open - worth fixing
 
-### 4. The direction has no visual weight
+### 4. The direction has no visual weight - FIXED
 
 **What "visual weight" means.** How strongly an element pulls the eye: size,
 boldness, colour, spacing, position. It is how a page communicates importance
@@ -76,10 +76,12 @@ A user scanning the summary sees five interchangeable panels. Nothing says the
 last one is the point, and the caveat currently looks more important than the
 answer it qualifies.
 
-**Where.** The `.direction-next` section in `CareerExperimentScreenV2.tsx`.
-No rules for that class exist in `app/globals.css`.
+**Fixed.** `.direction-next` now renders as a filled green card with a 30px
+heading and 14px body text, up from 10px muted text in an identical panel. The
+core tension above it gets a calmer amber treatment so it reads as a flag
+rather than a competing conclusion.
 
-### 5. Two sections both announce a conclusion, and the older one names a career
+### 5. Two sections both announce a conclusion, and the older one names a career - FIXED
 
 **The problem.** The summary now shows, in order:
 
@@ -98,9 +100,11 @@ Product Manager" is close to the verdict the product is built to refuse. It
 was written before that ADR existed, so this is a genuine inconsistency
 between the code and its own stated rules.
 
-**Options.** Merge the two sections; demote the older one to supporting
-evidence beneath the direction; or reword its headline so the finding leads
-and the career name follows.
+**Fixed.** The observation now leads and the career name appears inside it as
+something the user said: "You said you would choose the Product Manager task if
+you repeated one tomorrow." The section is labelled "What you said during the
+experiment" rather than "What your preference evidence points to", which
+promised a conclusion. A test asserts the old heading cannot return.
 
 ### 6. Unknowns are ranked in one place and arbitrary in two others - FIXED
 

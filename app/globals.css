@@ -975,3 +975,57 @@ textarea { resize: vertical; }
 .group-preference-question > p { margin: 9px 0 0; color: var(--muted); font-size: 10px; }
 
 @media (max-width: 760px) { .grouped-activity-evidence > ul > li, .group-career > header, .group-career li > div { align-items: flex-start; flex-direction: column; } }
+
+/* The Direction is the product's final output. It was rendering as one of six
+   identical panels, with explanatory text smaller than its own disclaimer.
+   See docs/known-issues.md. */
+.direction-next {
+  margin-top: 26px;
+  padding: 32px 34px;
+  border: none;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--green-dark), var(--green));
+  box-shadow: var(--shadow);
+}
+.direction-next > span { color: #b6dcc5; font-size: 10px; }
+.direction-next > h2 {
+  margin: 12px 0 16px;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 1.22;
+}
+.direction-next p { color: #dcece1; font-size: 14px; line-height: 1.6; }
+.direction-next p + p { margin-top: 12px; }
+.direction-next .direction-caveat {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .18);
+  color: #a9c9b6;
+  font-size: 12px;
+}
+
+/* A Core Tension is a flag, not a conclusion: noticeable, deliberately calmer
+   than the direction below it. */
+.core-tension { border-left: 4px solid #c8a33a; background: #fdfbf3; }
+.core-tension > .core-tension-note { display: block; }
+.core-tension .core-tension-note + .core-tension-note {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.core-tension .core-tension-note h2 {
+  margin: 8px 0 10px;
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.core-tension .core-tension-note p { font-size: 12px; line-height: 1.55; }
+.core-tension > small {
+  display: block;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.preference-shift > small, .direction-next > small { display: block; margin-top: 14px; font-size: 11px; }
