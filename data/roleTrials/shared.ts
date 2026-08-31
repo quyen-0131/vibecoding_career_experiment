@@ -1,4 +1,5 @@
 import { getCareerModel, type CareerId } from "@/data/careers";
+import type { ActivityCategory } from "@/data/activityCatalog";
 import type { ExperimentScenario, PrimerConcept, PrimerStep, RoleTrialDefinition } from "@/types/experiment";
 
 export const learnLoopScenario: ExperimentScenario = {
@@ -87,7 +88,9 @@ export type RoleProfileInput = {
   concepts?: PrimerConcept[];
   tasks: Array<[string, string, string]>;
   rubric: Array<[string, string]>;
-  activities: string[];
+  // [label, Activity Group]. Every Experiment Aspect names an Activity Group so
+  // Phase 3 reactions stay comparable with Phase 2 preferences.
+  activities: Array<[string, ActivityCategory]>;
   unknowns: string[];
 };
 
@@ -112,7 +115,7 @@ export function createRoleTrial(input: RoleProfileInput): RoleTrialDefinition {
     },
     fields: input.tasks.map(([label, prompt, placeholder], index) => ({ id: `task-${index + 1}`, label, prompt, kind: "text", required: true, placeholder })),
     rubric: input.rubric.map(([label, question]) => ({ id: slug(label), label, question })),
-    activities: input.activities.map((label, index) => ({ id: `${input.careerId}-activity-${index + 1}`, label, role: input.careerId })),
+    activities: input.activities.map(([label, category], index) => ({ id: `${input.careerId}-activity-${index + 1}`, label, role: input.careerId, category })),
     remainingUnknowns: input.unknowns,
   };
 }

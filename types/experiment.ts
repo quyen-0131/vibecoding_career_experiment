@@ -1,4 +1,5 @@
 import type { CareerId } from "@/data/careers";
+import type { ActivityCategory } from "@/data/activityCatalog";
 
 export type ExperimentStage =
   | "question"
@@ -25,6 +26,14 @@ export type GapType = "knowledge" | "reasoning" | "communication" | "insufficien
 export type LearningChange = "clear_improvement" | "some_improvement" | "little_visible_change" | "not_enough_evidence";
 export type ExperimentPreference = "more" | "same" | "less" | "need_more_experience";
 export type ActivityReaction = "more" | "same" | "less" | "not_sure";
+
+/**
+ * Why a Contradiction happened. Asked once, never inferred: "I dislike this
+ * kind of work" and "I disliked that particular task" are different findings
+ * that look identical otherwise.
+ * See docs/adr/0005-contradictions-are-questioned-not-resolved.md.
+ */
+export type ContradictionCause = "kind-of-work" | "this-task";
 
 export type WorkReaction =
   | "enjoyed_problem_and_learning"
@@ -94,7 +103,10 @@ export type RoleTrialDefinition = {
   remainingUnknowns: string[];
 };
 
-export type ExperimentActivity = { id: string; label: string; role: CareerTaskId };
+// `category` ties an Experiment Aspect back to the Activity Group vocabulary
+// used for CV evidence, so a Work Reaction in Phase 3 is comparable with an
+// Imagined Preference from Phase 2. See CONTEXT.md and docs/adr/0006.
+export type ExperimentActivity = { id: string; label: string; role: CareerTaskId; category: ActivityCategory };
 export type CriterionEvaluation = { criterion: string; rating: CriterionRating; gapType: GapType; evidence: string; feedback: string };
 export type AttemptEvaluation = { criteria: CriterionEvaluation[]; strongestEvidence: string | null; revisionTarget: string; instruction: string | null; revisionPrompt: string };
 export type LearningResponse = { category: LearningChange; explanation: string };
@@ -146,6 +158,8 @@ export type CareerExperimentState = {
   completedCareerTasks: CareerTaskId[];
   roleTrials: Partial<Record<CareerTaskId, RoleTrialState>>;
   activityReflections: Partial<Record<string, ActivityReaction>>;
+  /** Keyed by Activity Group. Only ever set for a Contradiction. */
+  contradictionCauses: Partial<Record<string, ContradictionCause>>;
   directComparisonChoice?: DirectComparisonChoice;
   comparisonReflection: string;
   completedScenarioIds: string[];
