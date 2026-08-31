@@ -86,6 +86,17 @@ export const careerModels: CareerModel[] = [
       activity("roadmap-planning", "Roadmap planning", "Core", "Product managers sequence outcomes and initiatives while making dependencies and uncertainty visible.", ["product roadmap"], ["planning", "prioritisation"], ["roadmap"]),
       activity("success-measures", "Defining success measures", "Important", "Product managers define what observable outcome would show whether a product decision worked.", ["success metrics"], ["measurement reasoning"], ["measurement plan"]),
       activity("report-writing", "Strategic product reports and decision writing", "Important", "Product managers turn research, data, strategic reasoning and product decisions into clear written narratives. Strategic reports, product briefs and decision memos help cross-functional teams understand the evidence, proposed direction, trade-offs and measures of success.", ["product brief", "decision memo", "strategic report"], ["evidence synthesis", "strategic communication", "recommendation writing"], ["product brief", "decision memo", "strategy narrative"]),
+      // Rated explicitly so that an omission is never read as a judgement: an
+      // unstated activity defaults to Limited, which the direction ranking used
+      // to treat as a real difference. See docs/known-issues.md.
+      activity("structured-problem-solving", "Structured problem-solving", "Important", "Product managers decompose ambiguous problems, usually within one product rather than across unfamiliar industries."),
+      activity("interviewing", "User, customer and stakeholder interviews", "Important", "Product managers interview users and stakeholders regularly to understand problems and constraints."),
+      activity("market-sizing", "Market sizing", "Supporting", "Product managers size opportunities to judge whether a bet is worth making, without the depth a strategy engagement requires."),
+      activity("financial-analysis", "Financial analysis", "Supporting", "Product managers build business cases, but financial modelling is rarely the core of the role."),
+      activity("qualitative-research", "Qualitative research", "Supporting", "Product managers use qualitative evidence, often partnering with dedicated researchers."),
+      activity("programme-design", "Programme design", "Limited", "Designing organisational programmes is not part of product work."),
+      activity("programme-evaluation", "Programme evaluation", "Limited", "Evaluating organisational programmes sits outside the product role."),
+      activity("process-design", "Implementation planning", "Limited", "Product managers plan delivery within a team rather than organisational implementation."),
     ],
   },
   {
@@ -206,6 +217,18 @@ export const careerModels: CareerModel[] = [
       activity("proposal-development", "Proposal development", "Core", "Consultants turn an understanding of a problem into a persuasive scope, approach or recommendation.", ["consulting proposal", "pitch"], ["recommendation development", "persuasive writing"], ["proposal", "statement of work"]),
       activity("report-writing", "Strategic reports and slide creation", "Core", "Management consultants structure complex analysis into concise reports, executive memos and presentations that lead a client from evidence to implications and recommended action. The work requires synthesis, a clear storyline and writing that supports a decision rather than merely documenting information.", ["slide deck", "client report", "strategic report"], ["evidence synthesis", "storylining", "recommendation writing"], ["strategic report", "executive memo", "slide deck"]),
       activity("process-design", "Implementation planning", "Important", "Consultants translate recommendations into a practical sequence of actions, owners and dependencies.", ["implementation roadmap"], ["planning"], ["implementation plan"]),
+      // Rated explicitly so that an omission is never read as a judgement: an
+      // unstated activity defaults to Limited, which the direction ranking used
+      // to treat as a real difference. See docs/known-issues.md.
+      activity("product-delivery", "Product delivery and iteration", "Limited", "Consultants advise on what should be built, but ownership of shipping and iterating a live product stays with the client's product and engineering teams."),
+      activity("product-prioritisation", "Product prioritisation", "Limited", "Consultants prioritise recommendations and workstreams rather than a product backlog."),
+      activity("product-launch-planning", "Product launch planning", "Limited", "Launch execution belongs to the client organisation, though consultants may shape the plan."),
+      activity("technical-tradeoffs", "Technical trade-offs", "Limited", "Consulting recommendations usually stop short of the engineering trade-offs a product team lives with daily."),
+      activity("engineering-collaboration", "Working with engineering", "Limited", "Consultants work mainly with business stakeholders; sustained collaboration with engineers is uncommon."),
+      activity("product-strategy", "Product strategy development", "Supporting", "Strategy engagements sometimes cover product direction, but the consultant advises rather than owns it."),
+      activity("roadmap-planning", "Roadmap planning", "Supporting", "Consultants often build implementation roadmaps, though they hand them over rather than run them."),
+      activity("requirements-clarification", "Clarifying requirements", "Supporting", "Consultants gather requirements during implementation work, without owning them over a product's life."),
+      activity("success-measures", "Defining success measures", "Important", "Consultants define the measures that will show whether a recommendation worked."),
     ],
   },
   {

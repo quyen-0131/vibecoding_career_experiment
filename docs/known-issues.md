@@ -185,6 +185,27 @@ will fail if they try.
 
 ---
 
+### 13. Only the demonstrated pair is rated in both directions
+
+Product Manager and Management Consultant now carry explicit ratings for every
+activity either treats as central, so nothing about that pair is inferred from
+silence. The other ten careers do not: overall only about a quarter of the
+career-by-activity grid is authored.
+
+The consequence is bounded rather than dangerous, because the ranking demotes
+any separation it cannot vouch for (see #4 above and `bothStated`). A user
+comparing two under-authored careers gets weaker recommendations, not wrong
+ones. But the prototype is genuinely best demonstrated with the pair it was
+built against, and the case notes say so.
+
+Filling the rest is authoring, not engineering. The likelier route is
+completing the O*NET generation: `data/custom/role-occupation-map.json` covers
+all twelve roles while `data/generated/onet-occupations.json` holds three, and
+`lib/roles/assessSkillRoleRelevance.ts` already returns "Unknown" rather than
+guessing when data is missing.
+
+---
+
 ## Repository and environment
 
 ### 11. The real product does not live on `main`

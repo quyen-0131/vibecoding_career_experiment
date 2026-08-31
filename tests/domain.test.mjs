@@ -958,9 +958,13 @@ test("transferable lens covers metrics, presentations and product strategy acros
     originalLabel: "Developed a product strategy",
     sources: [{ experienceId: "strategy-role", title: "Strategist", organisation: "Example" }],
   }, roles);
-  assert.notEqual(strategy.careerTransfers["management-consultant"].relationship, "unknown");
-  assert.equal(strategy.careerTransfers["management-consultant"].careerActivityId, "strategic-recommendations");
-  assert.match(strategy.careerTransfers["management-consultant"].rationale, /evidence, choices and trade-offs/i);
+  // Management Consultant now rates product strategy explicitly, so this
+  // resolves directly instead of reaching for an adjacent activity. The credit
+  // is lower and more honest: consultants advise on product direction, they do
+  // not own it.
+  assert.equal(strategy.careerTransfers["management-consultant"].relationship, "direct");
+  assert.equal(strategy.careerTransfers["management-consultant"].careerActivityId, "product-strategy");
+  assert.equal(strategy.careerTransfers["management-consultant"].importance, "Supporting");
 
   const recommendation = mapNormalizedActivity({
     canonicalId: "strategic-recommendations",
@@ -1433,8 +1437,28 @@ test("a separation inferred from silence never outranks one both careers state",
 });
 
 test("an unmapped activity is recorded as assumed, not as a real difference", () => {
-  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  // The demonstrated pair is now fully rated, so an under-authored pair is
+  // needed to exercise this at all.
+  const ranked = rankUnknownsBySeparation({ careers: ["service-designer", "policy-analyst"], confirmedActivityIds: [] });
   const assumed = ranked.filter((unknown) => !unknown.bothStated);
   assert.ok(assumed.length > 0, "the career models are only partly authored, so some pairs are unstated");
   assert.ok(assumed.every((unknown) => typeof unknown.separation === "number"));
+});
+
+test("the demonstrated pair is rated in both directions, so nothing is assumed", () => {
+  const { careerModels } = loadTypeScriptModule("data/careers.ts");
+  const pm = careerModels.find((career) => career.id === "product-manager");
+  const mc = careerModels.find((career) => career.id === "management-consultant");
+  const pmIds = new Set(pm.activities.map((activity) => activity.id));
+  const mcIds = new Set(mc.activities.map((activity) => activity.id));
+
+  const central = (model) => model.activities.filter((a) => a.importance === "Core" || a.importance === "Important");
+  assert.deepEqual(central(pm).filter((a) => !mcIds.has(a.id)).map((a) => a.id), [],
+    "work central to a Product Manager must carry an explicit Management Consultant rating");
+  assert.deepEqual(central(mc).filter((a) => !pmIds.has(a.id)).map((a) => a.id), [],
+    "and the reverse");
+
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  assert.ok(ranked.slice(0, 5).every((unknown) => unknown.bothStated),
+    "so the top recommendations rest on stated ratings, not on silence");
 });
