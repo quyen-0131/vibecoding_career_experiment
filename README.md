@@ -35,6 +35,7 @@ Why the product is built this way, and what it deliberately refuses to do.
 - [The case](docs/the-case.md) - the problem, why quizzes, information and counsellors do not answer it, and the honest limits
 - [CONTEXT.md](CONTEXT.md) - the glossary: what each term means and which distinctions the product depends on
 - [Architecture decision records](docs/adr/) - the decisions, and why the alternatives were rejected
+- [Known issues](docs/known-issues.md) - bugs found, trade-offs taken deliberately, and what is still open
 
 The decisions in short:
 
