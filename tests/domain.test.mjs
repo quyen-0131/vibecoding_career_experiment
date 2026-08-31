@@ -1355,3 +1355,59 @@ test("unresolved and mixed reactions raise no core tension", () => {
     assert.deepEqual(tensions, [], `${kind} is not evidence about the work`);
   }
 });
+
+const { extractExperiencesFromCv: extractCv } = loadTypeScriptModule("lib/extraction/extractExperiencesFromCv.ts");
+
+const projectCv = `Work Experience
+
+Product Strategy Intern | Trulioo
+Jan 2024 - Aug 2024
+Analysed product metrics and funnel performance.
+Led projects across three teams.
+
+Projects
+
+Career Experiment
+Built a working app prototype with Kiro against a live client brief.
+`;
+
+test("a projects section is not absorbed into the job above it", () => {
+  const experiences = extractCv(projectCv);
+  const trulioo = experiences.find((experience) => experience.organisation === "Trulioo");
+  assert.ok(trulioo, "the job is still detected");
+  const labels = trulioo.activities.map((activity) => activity.label).join(" | ");
+  assert.doesNotMatch(labels, /Kiro/, "project work is never attributed to an unrelated employer");
+});
+
+test("a project titled by name alone becomes its own experience", () => {
+  const project = extractCv(projectCv).find((experience) => experience.title === "Career Experiment");
+  assert.ok(project, "a project entry needs no employer and no role word");
+  assert.equal(project.type, "project");
+  assert.match(project.activities.map((activity) => activity.label).join(" "), /Kiro/);
+});
+
+test("a short bullet mentioning projects or leadership is kept, not read as a heading", () => {
+  const trulioo = extractCv(projectCv).find((experience) => experience.organisation === "Trulioo");
+  assert.match(
+    trulioo.activities.map((activity) => activity.label).join(" | "),
+    /Led projects across three teams/,
+    "an unanchored section pattern used to delete these lines outright",
+  );
+});
+
+test("a repeated section heading still does not split a role from its bullets", () => {
+  const experiences = extractCv(`Work Experience
+
+Consultant | Decision Lab
+Designed qualitative research.
+Synthesised findings for clients.
+
+Work Experience
+
+Analyst | Acme
+Analysed customer data.
+`);
+  assert.equal(experiences.length, 2);
+  const consultant = experiences.find((experience) => experience.organisation === "Decision Lab");
+  assert.ok(consultant.activities.length >= 2, "bullets continuing after a page break stay with their role");
+});

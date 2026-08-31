@@ -9,7 +9,11 @@ const roleWords = /\b(consultant|analyst|intern|co-?op|manager|researcher?|assis
 const bulletPrefixPattern = /^\s*[-*•▪◦‣]\s*/;
 const descriptionStart = /^(?:[-*•▪◦‣]\s*)?(?:achieved|administered|advised|analysed|analyzed|assessed|assisted|audited|built|collaborated|communicated|conducted|coordinated|created|cultivated|delivered|designed|developed|documented|ensured|evaluated|facilitated|guided|handled|hosted|implemented|improved|investigated|led|liaised|maintained|managed|mentored|monitored|organised|organized|oversaw|participated|prepared|presented|processed|produced|promoted|provided|researched|responded|responsible|reviewed|scheduled|selected|supported|tracked|trained|used|verified|worked|wrote|administer(?:s)?|advise(?:s)?|analyse(?:s)?|analyze(?:s)?|assess(?:es)?|assist(?:s)?|communicate(?:s)?|conduct(?:s)?|coordinate(?:s)?|create(?:s)?|deliver(?:s)?|design(?:s)?|develop(?:s)?|document(?:s)?|ensure(?:s)?|evaluate(?:s)?|facilitate(?:s)?|handle(?:s)?|implement(?:s)?|investigate(?:s)?|maintain(?:s)?|manage(?:s)?|prepare(?:s)?|present(?:s)?|process(?:es)?|provide(?:s)?|research(?:es)?|respond(?:s)?|review(?:s)?|schedule(?:s)?|support(?:s)?|track(?:s)?|train(?:s)?|verify|verifies|write(?:s)?|(?:administrative|operational|case|policy|record|records|faculty|student|client|stakeholder|project|programme|program|research|data)\s+(?:support|management|review|coordination|analysis|processing|documentation|communication|administration))\b/i;
 const excludedExperienceWords = /\b(scholarship|award|honou?r|seminar|certification|certificate|course|programme participant|program participant|education|degree|diploma)\b/i;
-const includedSectionPattern = /^(?:professional\s+)?(?:work\s+)?(?:experience|history)|employment|career history|professional background|internships?|projects?|leadership|volunteering|volunteer experience$/i;
+// The alternation must be wrapped: without the group, `^` bound only to the
+// first branch, so words like "projects" or "leadership" matched anywhere in
+// a line. Any short bullet mentioning them was treated as a section heading
+// and silently dropped from the CV.
+const includedSectionPattern = /^(?:(?:professional\s+)?(?:work\s+)?(?:experience|history)|employment|career history|professional background|internships?|projects?|leadership|volunteering|volunteer experience)\s*:?\s*$/i;
 const excludedSectionPattern = /^(?:education|awards?|honou?rs?|scholarships?|certifications?|courses?|seminars?|programmes?|programs?|skills?|summary|profile|publications?|languages?|interests?)$/i;
 const locationWords = /\b(remote|hybrid|on-site|canada|vietnam|singapore|united states|united kingdom|usa|uk|bc|ontario|quebec)\b/i;
 const activitySentenceStart = descriptionStart;
@@ -17,6 +21,8 @@ const activityNounPhrase = /\b(analysis|assessment|communication|coordination|de
 
 type HeaderCandidate = {
   index: number;
+  /** The section heading this candidate was found under, if any. */
+  section?: string;
   headerEndIndex: number;
   title: string;
   organisation?: string;
@@ -150,6 +156,36 @@ function getOrganisationCandidate(value: string) {
   ));
 }
 
+const projectSectionPattern = /^(?:projects?|leadership|volunteering)s*:?s*$/i;
+
+function isDifferentSectionHeading(line: string, section?: string) {
+  if (!isSectionHeading(line)) return false;
+  return !section || line.toLowerCase() !== section.toLowerCase();
+}
+
+/**
+ * A project is usually titled by its name alone - "Career Experiment" - with
+ * no employer and no role word, so the normal header parsers reject it and its
+ * bullets get absorbed into whichever job precedes it. Inside a projects
+ * section we accept a short, non-sentence line as an entry in its own right.
+ */
+function parseProjectEntry(line: string, index: number, section: string): HeaderCandidate | undefined {
+  if (!projectSectionPattern.test(section)) return undefined;
+  const title = stripTrailingDate(line).text;
+  const plausible =
+    title.length >= 3 &&
+    title.length <= 80 &&
+    title.split(/s+/).length <= 8 &&
+    !isSectionHeading(title) &&
+    !dateRangePattern.test(title) &&
+    !bulletPrefixPattern.test(line) &&
+    !descriptionStart.test(title) &&
+    !excludedExperienceWords.test(title) &&
+    !/[.!?,;:]$/.test(title);
+  if (!plausible) return undefined;
+  return { index, headerEndIndex: index, title, section, type: "project" };
+}
+
 function parseCombinedHeader(line: string, index: number, section: string): HeaderCandidate | undefined {
   if (excludedSectionPattern.test(section) || excludedExperienceWords.test(line)) return undefined;
   const stripped = stripTrailingDate(line);
@@ -168,6 +204,7 @@ function parseCombinedHeader(line: string, index: number, section: string): Head
     index,
     headerEndIndex: index,
     title: stripTrailingDate(title).text,
+    section,
     organisation,
     type: classifyExperience(title, section),
   };
@@ -191,6 +228,7 @@ function parseSplitHeader(lines: string[], titleIndex: number, section: string):
     index: Math.min(...headerIndexes),
     headerEndIndex: Math.max(...headerIndexes),
     title: titleDetails.text,
+    section,
     organisation,
     type: classifyExperience(titleDetails.text, section),
   };
@@ -210,7 +248,7 @@ export function extractExperiencesFromCv(cvText: string): DetectedExperience[] {
     }
     if (currentSection && !isIncludedSection(currentSection)) return;
 
-    const candidate = parseCombinedHeader(line, index, currentSection) ?? parseSplitHeader(lines, index, currentSection);
+    const candidate = parseCombinedHeader(line, index, currentSection) ?? parseSplitHeader(lines, index, currentSection) ?? parseProjectEntry(line, index, currentSection);
     if (!candidate) return;
     const duplicate = candidates.some((existing) => existing.title === candidate.title && existing.organisation === candidate.organisation && Math.abs(existing.index - candidate.index) <= 2);
     if (!duplicate) candidates.push(candidate);
@@ -219,11 +257,14 @@ export function extractExperiencesFromCv(cvText: string): DetectedExperience[] {
   candidates.sort((a, b) => a.index - b.index);
   return candidates.slice(0, 15).map((candidate, candidateIndex) => {
     const nextCandidateIndex = candidates[candidateIndex + 1]?.index ?? lines.length;
-    // CV templates often repeat "Work Experience" at the top of a new page.
-    // That included heading should not cut a role off from bullet text that
-    // continues after the page break. Only a genuinely excluded section ends
-    // the current experience before the next detected role begins.
-    const nextSectionOffset = lines.slice(candidate.headerEndIndex + 1).findIndex(isExcludedSectionHeading);
+    // CV templates often repeat "Work Experience" at the top of a new page, so
+    // the same heading repeating must not cut a role off from bullets that
+    // continue after the break. A *different* section heading does end it:
+    // otherwise a Projects section is absorbed into the job above it and its
+    // activities are attributed to the wrong employer.
+    const nextSectionOffset = lines
+      .slice(candidate.headerEndIndex + 1)
+      .findIndex((line) => isExcludedSectionHeading(line) || isDifferentSectionHeading(line, candidate.section));
     const nextSectionIndex = nextSectionOffset >= 0 ? candidate.headerEndIndex + 1 + nextSectionOffset : lines.length;
     const nextIndex = Math.min(nextCandidateIndex, nextSectionIndex);
     const description = lines
