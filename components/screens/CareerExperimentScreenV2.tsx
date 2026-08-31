@@ -20,6 +20,7 @@ import { evaluateInitialAttempt, evaluateRevision } from "@/lib/experiments/eval
 import { interpretComparisonReflection } from "@/lib/experiments/interpretReflection";
 import { computePreferenceFindings, selectHeadlineFinding, type PreferenceFinding } from "@/lib/evidence/preferenceShift";
 import type { ContradictionCause } from "@/types/experiment";
+import { buildDirection, rankUnknownsBySeparation } from "@/lib/evidence/directionRanking";
 import type { ActivityEvidenceResponse, NormalizedActivity } from "@/types/prototype";
 import {
   createInitialExperimentState,
@@ -517,13 +518,16 @@ function buildDirectionalSignal(state: CareerExperimentState, testedRoles: Caree
   };
 }
 
+// Two forms: one before a noun ("more analysis work"), one standing alone
+// after a pronoun ("you wanted more of it").
 const preferenceWord = { more: "more", same: "about the same amount of", less: "less" } as const;
+const preferenceWordAlone = { more: "more of it", same: "about the same amount of it", less: "less of it" } as const;
 
 function describeFinding(finding: PreferenceFinding) {
   const work = `${finding.category.toLowerCase()} work`;
   if (finding.kind === "shift" && finding.direction === "confirmed") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you still did.`;
-  if (finding.kind === "shift") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you wanted ${preferenceWord[finding.informed]} it.`;
-  if (finding.kind === "first-evidence") return `You had no ${work} in your evidence. Having now done some, you want ${preferenceWord[finding.informed]} it.`;
+  if (finding.kind === "shift") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you wanted ${preferenceWordAlone[finding.informed]}.`;
+  if (finding.kind === "first-evidence") return `You had no ${work} in your evidence. Having now done some, you want ${preferenceWordAlone[finding.informed]}.`;
   if (finding.kind === "unresolved") return `You did ${work} and still need more experience before judging it. That is a real answer, not a gap.`;
   return `Your reactions to ${work} differed across tasks, so we are not summarising them as one preference.`;
 }
@@ -534,7 +538,58 @@ const contradictionCauseLabels = {
   "this-task": "Something about this particular task",
 };
 
+function DirectionSection({
+  direction,
+  careers,
+}: {
+  direction: ReturnType<typeof buildDirection>;
+  careers: CareerId[];
+}) {
+  if (direction.kind === "nothing-left") {
+    return (
+      <section className="cross-career-synthesis direction-next">
+        <span>What to explore next</span>
+        <h2>{direction.reason}</h2>
+      </section>
+    );
+  }
+
+  if (direction.kind === "retest") {
+    return (
+      <section className="cross-career-synthesis direction-next">
+        <span>What to explore next</span>
+        <h2>Try {direction.category.toLowerCase()} work again, in a different setting.</h2>
+        <p>{direction.reason}</p>
+      </section>
+    );
+  }
+
+  const { unknown } = direction;
+  const leaning = unknown.leansToward ? getCareerModel(unknown.leansToward)?.title : undefined;
+  const other = careers.find((career) => career !== unknown.leansToward);
+  const otherTitle = other ? getCareerModel(other)?.title : undefined;
+
+  return (
+    <section className="cross-career-synthesis direction-next">
+      <span>What to explore next</span>
+      <h2>Get some experience of {unknown.label.toLowerCase()}.</h2>
+      {leaning && otherTitle && (
+        <p>
+          It is {unknown.importanceByCareer[unknown.leansToward!]?.toLowerCase()} work for a {leaning} and
+          much less central for a {otherTitle}, and you have no evidence of it yet. Whatever you find
+          out, you learn something about the choice itself &mdash; which is why it comes before work you
+          are simply curious about.
+        </p>
+      )}
+      <p className="direction-caveat">
+        This is a suggestion about what to try next, not a recommendation to become a {leaning ?? "particular role"}.
+      </p>
+    </section>
+  );
+}
+
 function PreferenceShiftSection({
+
   findings,
   contradictionCauses,
   onContradictionCause,
@@ -595,6 +650,10 @@ function SummaryScreen({
 }) {
   const testedRoles = getTaskSequence(state.mode, state.selectedCareers);
   const directionalSignal = buildDirectionalSignal(state, testedRoles);
+  const rankedUnknowns = rankUnknownsBySeparation({
+    careers: state.selectedCareers,
+    confirmedActivityIds: normalizedActivities.map((activity) => activity.canonicalId),
+  });
   const preferenceFindings = computePreferenceFindings({
     normalizedActivities,
     evidenceResponses,
@@ -652,6 +711,10 @@ function SummaryScreen({
           <p><strong>Next step:</strong> {reflection.nextQuestion}</p>
         </section>
       )}
+      <DirectionSection
+        direction={buildDirection({ rankedUnknowns, findings: preferenceFindings, contradictionCauses: state.contradictionCauses })}
+        careers={state.selectedCareers}
+      />
       <p className="experiment-verdict">
         This is not a career recommendation. A different case can add another
         piece of evidence, but it still will not represent sustained real work.

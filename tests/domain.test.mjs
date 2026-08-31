@@ -1200,3 +1200,87 @@ test("a confirmed preference is never questioned", () => {
   const headline = selectHeadlineFinding(findings);
   assert.equal(headline.isContradiction, false, "no question is raised when the preference held");
 });
+
+const { rankUnknownsBySeparation, buildDirection } = loadTypeScriptModule("lib/evidence/directionRanking.ts");
+
+test("an unknown that separates the two careers outranks one they both value", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  assert.ok(ranked.length > 0);
+  const separations = ranked.map((unknown) => unknown.separation);
+  assert.deepEqual(separations, [...separations].sort((a, b) => b - a), "ranked by separation, descending");
+  assert.ok(ranked[0].separation > 0, "the top unknown actually distinguishes the two careers");
+});
+
+test("work both careers treat identically never leads the ranking", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const shared = ranked.filter((unknown) => unknown.separation === 0);
+  const distinguishing = ranked.filter((unknown) => unknown.separation > 0);
+  if (shared.length && distinguishing.length) {
+    assert.ok(ranked.indexOf(distinguishing[0]) < ranked.indexOf(shared[0]), "a shared unknown never outranks a distinguishing one");
+  }
+});
+
+test("activities the user already has evidence for are not proposed as unknowns", () => {
+  const all = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const excluded = all[0].activityId;
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [excluded] });
+  assert.ok(!ranked.some((unknown) => unknown.activityId === excluded));
+});
+
+test("a ranked unknown names which career cares about it more", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const top = ranked[0];
+  assert.ok(top.leansToward, "a distinguishing unknown leans toward one career");
+  assert.ok(["product-manager", "management-consultant"].includes(top.leansToward));
+  const shared = ranked.find((unknown) => unknown.separation === 0);
+  if (shared) assert.equal(shared.leansToward, undefined, "work valued equally leans nowhere");
+});
+
+test("the ranking is deterministic", () => {
+  const input = { careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] };
+  assert.deepEqual(rankUnknownsBySeparation(input), rankUnknownsBySeparation(input));
+});
+
+test("a contradiction blamed on the task outranks exploring something new", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: { Analysis: "this-task" } });
+  assert.equal(direction.kind, "retest");
+  assert.equal(direction.category, "Analysis");
+});
+
+test("a contradiction blamed on the work itself is settled and needs no retest", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: { Analysis: "kind-of-work" } });
+  assert.equal(direction.kind, "explore");
+});
+
+test("an unanswered contradiction does not hijack the direction", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.equal(direction.kind, "explore");
+});
+
+test("direction ranking never reads experiment performance", () => {
+  const source = readFileSync(resolve(root, "lib/evidence/directionRanking.ts"), "utf8");
+  assert.doesNotMatch(source, /rubric|evaluation|rating|criteri/i);
+});
+
+test("the summary ends with a direction and refuses to name a best career", () => {
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(source, /What to explore next/);
+  // ADR 0001: a career name may appear as evidence, never as a conclusion.
+  assert.match(source, /not a recommendation to become a/);
+  assert.match(source, /This is not a career recommendation/);
+  // The direction is built from unknowns and reactions, never from performance.
+  assert.match(source, /rankUnknownsBySeparation\(\{\s*careers: state\.selectedCareers/s);
+});
+
+test("shift copy reads as English for every preference value", () => {
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // "you wanted less it" is not English. A standalone form is needed after a pronoun.
+  assert.doesNotMatch(source, /\$\{preferenceWord\[[^\]]+\]\} it\./);
+  assert.match(source, /preferenceWordAlone = \{ more: "more of it", same: "about the same amount of it", less: "less of it" \}/);
+});
