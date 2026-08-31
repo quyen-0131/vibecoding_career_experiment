@@ -28,7 +28,7 @@ export function StartingEvidenceMapScreen({ careers, allActivities, responses, o
 
       <div className="role-narrative-grid">
         {careers.map((careerId, index) => {
-          const narrative = buildStartingEvidence(careerId, allActivities, responses);
+          const narrative = buildStartingEvidence(careerId, allActivities, responses, careers.find((other) => other !== careerId));
           if (!narrative) return null;
 
           return (

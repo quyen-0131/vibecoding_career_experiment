@@ -102,7 +102,7 @@ between the code and its own stated rules.
 evidence beneath the direction; or reword its headline so the finding leads
 and the career name follows.
 
-### 6. Unknowns are ranked in one place and arbitrary in two others
+### 6. Unknowns are ranked in one place and arbitrary in two others - FIXED
 
 **The problem.** `getRemainingEvidenceGaps` in `data/careers.ts` selects
 untested activities with a plain truncation - that is, in whatever order they
@@ -122,7 +122,11 @@ direction may name a third - with no stated reason for any of it.
 whole point. Applying it in the last screen but not in the two screens that
 lead there undercuts the argument.
 
-**Fix.** Have those two call sites rank before truncating.
+**Fixed.** Both call sites now use `rankCareerGaps`, which orders by the same
+separation rule before truncating. Verified on screen: the evidence map for a
+Product Manager / Management Consultant pair no longer lists "Stakeholder and
+client communication", which both careers do and which therefore never
+distinguished them.
 
 ### 7. The accessibility tie-break is specified but not implemented
 

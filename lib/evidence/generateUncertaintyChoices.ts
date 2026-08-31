@@ -1,4 +1,5 @@
-import { getCareerModel, getRemainingEvidenceGaps, type CareerId } from "@/data/careers";
+import { getCareerModel, type CareerId } from "@/data/careers";
+import { rankCareerGaps } from "@/lib/evidence/directionRanking";
 import type { NormalizedActivity, UncertaintyChoice } from "@/types/prototype";
 
 export function generateUncertaintyChoices(careers: CareerId[], activities: NormalizedActivity[]): UncertaintyChoice[] {
@@ -10,7 +11,9 @@ export function generateUncertaintyChoices(careers: CareerId[], activities: Norm
   const models = [firstCareer, secondCareer];
 
   const roleChoices = models.map((career, index): UncertaintyChoice => {
-    const gaps = getRemainingEvidenceGaps(career.id, existingIds, 6);
+    // Ranked by what separates the two careers, not by declaration order.
+    const other = models[index === 0 ? 1 : 0];
+    const gaps = rankCareerGaps(career.id, other.id, existingIds, 6);
     const exploredGaps = gaps.filter((gap) => career.uncertainty.explores.includes(gap.id));
     const explores = (exploredGaps.length ? exploredGaps : gaps.slice(0, 3)).map((gap) => gap.label);
     return {

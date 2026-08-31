@@ -171,3 +171,9 @@ sure we are of the evidence, never how good the User is. That naming is
 allowed in code that reads CVs. It must never reach a screen: a User is shown
 Activities and Activity Groups, and is told what they have done, never what
 they are good at. A guard test enforces this.
+
+**Core Tension** — a Career Option treats an Activity Group as Core, and the
+User wanted less of that work after doing it. Stated as two facts side by side
+and never resolved into a judgement about whether the career suits them. Never
+counted or aggregated: a tally of tensions would be a career-fit score. See
+`docs/adr/0007-core-tension-is-stated-not-resolved.md`.

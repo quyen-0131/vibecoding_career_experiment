@@ -1284,3 +1284,74 @@ test("shift copy reads as English for every preference value", () => {
   assert.doesNotMatch(source, /\$\{preferenceWord\[[^\]]+\]\} it\./);
   assert.match(source, /preferenceWordAlone = \{ more: "more of it", same: "about the same amount of it", less: "less of it" \}/);
 });
+
+const { rankCareerGaps } = loadTypeScriptModule("lib/evidence/directionRanking.ts");
+const { findCoreTensions } = loadTypeScriptModule("lib/evidence/coreTension.ts");
+
+test("all three screens rank untested work by the same rule", () => {
+  const ranked = rankCareerGaps("product-manager", "management-consultant", [], 5);
+  const separationOf = (activity) => activity.importance;
+  assert.ok(ranked.length > 0);
+  // The evidence map and the phase-3 questions now use the ranked helper.
+  const map = readFileSync(resolve(root, "lib/evidence/buildStartingEvidence.ts"), "utf8");
+  const questions = readFileSync(resolve(root, "lib/evidence/generateUncertaintyChoices.ts"), "utf8");
+  assert.match(map, /rankCareerGaps\(careerId, comparedWith/);
+  assert.match(questions, /rankCareerGaps\(career\.id, other\.id/);
+  assert.doesNotMatch(map, /getRemainingEvidenceGaps/);
+  assert.doesNotMatch(questions, /getRemainingEvidenceGaps/);
+  assert.ok(separationOf(ranked[0]));
+});
+
+test("work the user wanted less of is never recommended for further exploration", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const topCategory = ranked[0].category;
+  const findings = [{ kind: "first-evidence", category: topCategory, informed: "less", aspectLabels: [] }];
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.ok(direction.kind !== "explore" || direction.unknown.category !== topCategory, "the disliked group is skipped");
+});
+
+test("work the user wanted more of stays eligible", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const topCategory = ranked[0].category;
+  const findings = [{ kind: "first-evidence", category: topCategory, informed: "more", aspectLabels: [] }];
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.equal(direction.kind, "explore");
+  assert.equal(direction.unknown.category, topCategory);
+});
+
+test("a core tension is raised only for core work the user wanted less of", () => {
+  const careers = ["product-manager", "management-consultant"];
+  const less = findCoreTensions({ careers, findings: [{ kind: "first-evidence", category: "Product & Strategy", informed: "less", aspectLabels: [] }], contradictionCauses: {} });
+  assert.ok(less.length > 0, "core work the user wanted less of raises a tension");
+  assert.ok(less[0].coreActivityLabels.length > 0, "the tension names the concrete core activities");
+
+  const same = findCoreTensions({ careers, findings: [{ kind: "first-evidence", category: "Product & Strategy", informed: "same", aspectLabels: [] }], contradictionCauses: {} });
+  assert.deepEqual(same, [], "about the same is not a tension");
+});
+
+test("a reaction blamed on the task raises no core tension", () => {
+  const tensions = findCoreTensions({
+    careers: ["product-manager", "management-consultant"],
+    findings: [{ kind: "shift", category: "Product & Strategy", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }],
+    contradictionCauses: { "Product & Strategy": "this-task" },
+  });
+  assert.deepEqual(tensions, [], "if it was the task, it is not evidence about the work");
+});
+
+test("core tensions are never counted, scored, or turned into a verdict", () => {
+  // Check the code, not the prose: the doc comment has to say "career-fit
+  // score" in order to explain why the module refuses to produce one.
+  const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const source = stripComments(readFileSync(resolve(root, "lib/evidence/coreTension.ts"), "utf8"));
+  assert.doesNotMatch(source, /score|percent|\.length \/|fit\b/i);
+  const ui = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(ui, /does not settle whether the career suits you/);
+});
+
+test("unresolved and mixed reactions raise no core tension", () => {
+  const careers = ["product-manager", "management-consultant"];
+  for (const kind of ["unresolved", "mixed"]) {
+    const tensions = findCoreTensions({ careers, findings: [{ kind, category: "Product & Strategy", aspectLabels: [] }], contradictionCauses: {} });
+    assert.deepEqual(tensions, [], `${kind} is not evidence about the work`);
+  }
+});

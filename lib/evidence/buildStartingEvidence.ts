@@ -1,5 +1,6 @@
 import { getActivityDefinition } from "@/data/activityCatalog";
-import { getCareerModel, getRemainingEvidenceGaps, type CareerId, type CareerImportance } from "@/data/careers";
+import { getCareerModel, type CareerId, type CareerImportance } from "@/data/careers";
+import { rankCareerGaps } from "@/lib/evidence/directionRanking";
 import { buildCareerEvidenceMatrix } from "@/lib/evidence/buildCareerEvidenceMatrix";
 import type { ActivityEvidenceResponse, ActivityPreference, NormalizedActivity } from "@/types/prototype";
 
@@ -38,6 +39,8 @@ export function buildStartingEvidence(
   careerId: CareerId,
   activities: NormalizedActivity[],
   responses: Record<string, ActivityEvidenceResponse>,
+  /** The other Career Option, so untested work is ranked by what separates them. */
+  comparedWith?: CareerId,
 ) {
   const career = getCareerModel(careerId);
   if (!career) return undefined;
@@ -69,7 +72,7 @@ export function buildStartingEvidence(
     return transfer && transfer.relationship !== "unknown" ? [transfer.careerActivityId] : [];
   });
   const evidencedActivityIds = new Set(evidencedCareerActivityIds);
-  const gaps = getRemainingEvidenceGaps(careerId, evidencedCareerActivityIds, 5);
+  const gaps = rankCareerGaps(careerId, comparedWith ?? careerId, evidencedCareerActivityIds, 5);
   const centralCareerActivities = career.activities.filter(
     (activity) => activity.importance === "Core" || activity.importance === "Important",
   );

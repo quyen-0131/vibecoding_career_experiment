@@ -21,6 +21,7 @@ import { interpretComparisonReflection } from "@/lib/experiments/interpretReflec
 import { computePreferenceFindings, selectHeadlineFinding, type PreferenceFinding } from "@/lib/evidence/preferenceShift";
 import type { ContradictionCause } from "@/types/experiment";
 import { buildDirection, rankUnknownsBySeparation } from "@/lib/evidence/directionRanking";
+import { findCoreTensions, type CoreTension } from "@/lib/evidence/coreTension";
 import type { ActivityEvidenceResponse, NormalizedActivity } from "@/types/prototype";
 import {
   createInitialExperimentState,
@@ -538,6 +539,30 @@ const contradictionCauseLabels = {
   "this-task": "Something about this particular task",
 };
 
+function CoreTensionSection({ tensions }: { tensions: CoreTension[] }) {
+  if (tensions.length === 0) return null;
+  return (
+    <section className="cross-career-synthesis core-tension">
+      <span>Worth noticing</span>
+      {tensions.map((tension) => (
+        <div className="core-tension-note" key={`${tension.careerId}-${tension.category}`}>
+          <h2>
+            {tension.category} work is core to a {tension.careerTitle}, and after doing it you wanted less of it.
+          </h2>
+          <p>
+            For a {tension.careerTitle} this includes {tension.coreActivityLabels.join(", ").toLowerCase()}.
+            Core work is the part of a job you cannot avoid by picking a different team or employer.
+          </p>
+        </div>
+      ))}
+      <small>
+        Not wanting one kind of work does not settle whether the career suits you, and we are not
+        counting these up. It is one thing worth weighing yourself.
+      </small>
+    </section>
+  );
+}
+
 function DirectionSection({
   direction,
   careers,
@@ -711,6 +736,9 @@ function SummaryScreen({
           <p><strong>Next step:</strong> {reflection.nextQuestion}</p>
         </section>
       )}
+      <CoreTensionSection
+        tensions={findCoreTensions({ careers: state.selectedCareers, findings: preferenceFindings, contradictionCauses: state.contradictionCauses })}
+      />
       <DirectionSection
         direction={buildDirection({ rankedUnknowns, findings: preferenceFindings, contradictionCauses: state.contradictionCauses })}
         careers={state.selectedCareers}

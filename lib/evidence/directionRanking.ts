@@ -107,7 +107,50 @@ export function buildDirection({
     };
   }
 
-  const [top] = rankedUnknowns;
+  // Never send a User back toward work they have just done and wanted less
+  // of. Where an experiment gave them an informed preference for an Activity
+  // Group, only a "more" keeps that group eligible; anything else falls
+  // through to the next candidate. Preference gates the direction;
+  // performance never does (ADR 0002).
+  const informedByCategory = new Map<string, string>();
+  for (const finding of findings) {
+    if (finding.kind === "shift" || finding.kind === "first-evidence") informedByCategory.set(finding.category, finding.informed);
+  }
+  const eligible = rankedUnknowns.filter((unknown) => {
+    const informed = unknown.category ? informedByCategory.get(unknown.category) : undefined;
+    return informed === undefined || informed === "more";
+  });
+
+  const [top] = eligible;
   if (!top) return { kind: "nothing-left", reason: "Your evidence already covers the important work in both careers." };
   return { kind: "explore", unknown: top };
+}
+
+/**
+ * The same separation ordering, returning full CareerActivity objects so the
+ * evidence map and the phase-3 question list can rank rather than truncate in
+ * declaration order. Without this the three screens disagree about which
+ * untested work matters; see docs/known-issues.md.
+ */
+export function rankCareerGaps(
+  careerId: CareerId,
+  comparedWith: CareerId,
+  existingCanonicalIds: string[],
+  limit = 5,
+) {
+  const career = getCareerModel(careerId);
+  if (!career) return [];
+  const existing = new Set(existingCanonicalIds);
+  return career.activities
+    .filter((activity) => (activity.importance === "Core" || activity.importance === "Important") && !existing.has(activity.id))
+    .map((activity) => ({
+      activity,
+      separation: Math.abs(importanceRank[activity.importance] - importanceRank[getCareerActivity(comparedWith, activity.id).importance]),
+    }))
+    .sort((a, b) =>
+      b.separation - a.separation ||
+      importanceRank[b.activity.importance] - importanceRank[a.activity.importance] ||
+      a.activity.label.localeCompare(b.activity.label))
+    .slice(0, limit)
+    .map(({ activity }) => activity);
 }
