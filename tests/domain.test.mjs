@@ -1462,3 +1462,47 @@ test("the demonstrated pair is rated in both directions, so nothing is assumed",
   assert.ok(ranked.slice(0, 5).every((unknown) => unknown.bothStated),
     "so the top recommendations rest on stated ratings, not on silence");
 });
+
+const cvWithTrailingSections = `Work Experience
+
+Product Strategy Intern | Trulioo
+Analysed product metrics and funnel performance.
+
+Projects
+
+Career Experiment
+Built a working app prototype with Kiro.
+
+ADDITIONAL
+
+Technical: Python, SQL, Tableau
+Languages: English, Vietnamese
+`;
+
+test("a projects section does not swallow the sections that follow it", () => {
+  const titles = extractCv(cvWithTrailingSections).map((experience) => experience.title);
+  assert.deepEqual(titles, ["Product Strategy Intern", "Career Experiment"]);
+  for (const phantom of ["ADDITIONAL", "Technical: Python, SQL, Tableau", "Languages: English, Vietnamese"]) {
+    assert.ok(!titles.includes(phantom), `"${phantom}" is a heading or a list, not an experience`);
+  }
+});
+
+test("common closing CV headings end the section they follow", () => {
+  for (const heading of ["ADDITIONAL", "Additional Information", "Additional Skills", "Technical Skills", "Skills", "References"]) {
+    const experiences = extractCv(`Projects\n\nCareer Experiment\nBuilt a working app prototype with Kiro.\n\n${heading}\n\nPython, SQL, Tableau\n`);
+    assert.deepEqual(experiences.map((experience) => experience.title), ["Career Experiment"], `"${heading}" must not become an experience`);
+  }
+});
+
+test("an experience with no activities is dropped rather than shown as empty", () => {
+  const experiences = extractCv(`Work Experience
+
+Product Strategy Intern | Trulioo
+Analysed product metrics and funnel performance.
+
+Research Assistant | Some Lab
+`);
+  const titles = experiences.map((experience) => experience.title);
+  assert.ok(titles.includes("Product Strategy Intern"));
+  assert.ok(!titles.includes("Research Assistant"), "an experience carrying no evidence asks the user to confirm nothing");
+});

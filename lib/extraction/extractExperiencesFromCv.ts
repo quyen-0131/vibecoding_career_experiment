@@ -14,7 +14,7 @@ const excludedExperienceWords = /\b(scholarship|award|honou?r|seminar|certificat
 // a line. Any short bullet mentioning them was treated as a section heading
 // and silently dropped from the CV.
 const includedSectionPattern = /^(?:(?:professional\s+)?(?:work\s+)?(?:experience|history)|employment|career history|professional background|internships?|projects?|leadership|volunteering|volunteer experience)\s*:?\s*$/i;
-const excludedSectionPattern = /^(?:education|awards?|honou?rs?|scholarships?|certifications?|courses?|seminars?|programmes?|programs?|skills?|summary|profile|publications?|languages?|interests?)$/i;
+const excludedSectionPattern = /^(?:additional(?:\s+(?:information|skills|experience|activities))?|technical(?:\s+skills)?|tools|activities|extra-?curriculars?|references|contact|achievements|hobbies|education|awards?|honou?rs?|scholarships?|certifications?|courses?|seminars?|programmes?|programs?|skills?|summary|profile|publications?|languages?|interests?)$/i;
 const locationWords = /\b(remote|hybrid|on-site|canada|vietnam|singapore|united states|united kingdom|usa|uk|bc|ontario|quebec)\b/i;
 const activitySentenceStart = descriptionStart;
 const activityNounPhrase = /\b(analysis|assessment|communication|coordination|delivery|design|development|documentation|evaluation|implementation|investigation|liaison|management|planning|presentation|processing|research|review|support|training|writing)\b/i;
@@ -181,7 +181,10 @@ function parseProjectEntry(line: string, index: number, section: string): Header
     !bulletPrefixPattern.test(line) &&
     !descriptionStart.test(title) &&
     !excludedExperienceWords.test(title) &&
-    !/[.!?,;:]$/.test(title);
+    !/[.!?,;:]$/.test(title) &&
+    // "Technical: Python, SQL" is a labelled list, not a project.
+    !/^[^:]{2,30}:s*S/.test(title) &&
+    !/,/.test(title);
   if (!plausible) return undefined;
   return { index, headerEndIndex: index, title, section, type: "project" };
 }
@@ -282,5 +285,8 @@ export function extractExperiencesFromCv(cvText: string): DetectedExperience[] {
       description,
       activities: extractActivitiesFromExperience(description, id),
     };
-  });
+  })
+  // An experience we found no activities in carries no evidence. Showing it
+  // asks the User to confirm nothing, so it is dropped.
+  .filter((experience) => experience.activities.length > 0);
 }
