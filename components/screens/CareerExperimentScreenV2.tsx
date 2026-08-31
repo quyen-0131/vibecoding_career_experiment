@@ -18,6 +18,9 @@ import {
 import { getCareerModel, type CareerId } from "@/data/careers";
 import { evaluateInitialAttempt, evaluateRevision } from "@/lib/experiments/evaluateExperiment";
 import { interpretComparisonReflection } from "@/lib/experiments/interpretReflection";
+import { computePreferenceFindings, selectHeadlineFinding, type PreferenceFinding } from "@/lib/evidence/preferenceShift";
+import type { ContradictionCause } from "@/types/experiment";
+import type { ActivityEvidenceResponse, NormalizedActivity } from "@/types/prototype";
 import {
   createInitialExperimentState,
   createNextScenarioState,
@@ -514,17 +517,90 @@ function buildDirectionalSignal(state: CareerExperimentState, testedRoles: Caree
   };
 }
 
+const preferenceWord = { more: "more", same: "about the same amount of", less: "less" } as const;
+
+function describeFinding(finding: PreferenceFinding) {
+  const work = `${finding.category.toLowerCase()} work`;
+  if (finding.kind === "shift" && finding.direction === "confirmed") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you still did.`;
+  if (finding.kind === "shift") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you wanted ${preferenceWord[finding.informed]} it.`;
+  if (finding.kind === "first-evidence") return `You had no ${work} in your evidence. Having now done some, you want ${preferenceWord[finding.informed]} it.`;
+  if (finding.kind === "unresolved") return `You did ${work} and still need more experience before judging it. That is a real answer, not a gap.`;
+  return `Your reactions to ${work} differed across tasks, so we are not summarising them as one preference.`;
+}
+
+const contradictionCauseOptions = ["kind-of-work", "this-task"] as const;
+const contradictionCauseLabels = {
+  "kind-of-work": "This kind of work",
+  "this-task": "Something about this particular task",
+};
+
+function PreferenceShiftSection({
+  findings,
+  contradictionCauses,
+  onContradictionCause,
+}: {
+  findings: PreferenceFinding[];
+  contradictionCauses: Partial<Record<string, ContradictionCause>>;
+  onContradictionCause: (category: string, cause: ContradictionCause) => void;
+}) {
+  const headline = selectHeadlineFinding(findings);
+  if (!headline) return null;
+  const isContradiction = headline.kind === "shift" && headline.isContradiction;
+  const cause = contradictionCauses[headline.category];
+  return (
+    <section className="cross-career-synthesis preference-shift">
+      <span>What changed when you did the work</span>
+      <h2>{describeFinding(headline)}</h2>
+      {isContradiction && (
+        <p>This is the most useful thing you learned today. Recall and experience disagreed &mdash; which does not mean your earlier answer was wrong, only that doing the work told you something reading about it could not.</p>
+      )}
+      {isContradiction && (
+        <div className="contradiction-question">
+          <ChoiceGroup
+            label="Which was it?"
+            options={contradictionCauseOptions}
+            labels={contradictionCauseLabels}
+            value={cause}
+            onChange={(next: ContradictionCause) => onContradictionCause(headline.category, next)}
+          />
+          {cause === "kind-of-work" && <p>Recorded as evidence about the work itself.</p>}
+          {cause === "this-task" && <p>Recorded as evidence about this task, not about the work. A different case may feel different.</p>}
+        </div>
+      )}
+      {headline.kind === "first-evidence" && (
+        <p>This is the first firsthand evidence you have about this kind of work. There was no earlier answer to compare it against.</p>
+      )}
+      {findings.length > 1 && (
+        <ul>{findings.filter((finding) => finding !== headline).map((finding) => <li key={finding.category}><strong>{finding.category}</strong> &mdash; {describeFinding(finding)}</li>)}</ul>
+      )}
+      <small>This compares what you predicted in your evidence review with how the work actually felt. It does not use your rubric performance.</small>
+    </section>
+  );
+}
+
 function SummaryScreen({
   state,
+  normalizedActivities,
+  evidenceResponses,
+  onContradictionCause,
   onBackToMap,
   onTryAnotherCase,
 }: {
   state: CareerExperimentState;
+  normalizedActivities: NormalizedActivity[];
+  evidenceResponses: Record<string, ActivityEvidenceResponse>;
+  onContradictionCause: (category: string, cause: ContradictionCause) => void;
   onBackToMap: () => void;
   onTryAnotherCase: () => void;
 }) {
   const testedRoles = getTaskSequence(state.mode, state.selectedCareers);
   const directionalSignal = buildDirectionalSignal(state, testedRoles);
+  const preferenceFindings = computePreferenceFindings({
+    normalizedActivities,
+    evidenceResponses,
+    experimentActivities: testedRoles.flatMap((role) => roleTrials[role].activities),
+    activityReflections: state.activityReflections,
+  });
   const reflection = interpretComparisonReflection(
     state.comparisonReflection,
     state.selectedCareers,
@@ -555,6 +631,11 @@ function SummaryScreen({
           />
         ))}
       </div>
+      <PreferenceShiftSection
+        findings={preferenceFindings}
+        contradictionCauses={state.contradictionCauses}
+        onContradictionCause={onContradictionCause}
+      />
       <section className="directional-signal">
         <span>What your preference evidence points to</span>
         <h2>{directionalSignal.heading}</h2>
@@ -588,10 +669,15 @@ function SummaryScreen({
 }
 export function CareerExperimentScreen({
   careers,
+  normalizedActivities = [],
+  evidenceResponses = {},
   isGuidedDemo = false,
   onBackToEvidenceMap,
 }: {
   careers: CareerId[];
+  /** Phase 1 evidence, so Phase 3 reactions can be compared with Phase 2 preferences. */
+  normalizedActivities?: NormalizedActivity[];
+  evidenceResponses?: Record<string, ActivityEvidenceResponse>;
   isGuidedDemo?: boolean;
   onBackToEvidenceMap: () => void;
 }) {
@@ -929,6 +1015,11 @@ export function CareerExperimentScreen({
   return (
     <SummaryScreen
       state={state}
+      normalizedActivities={normalizedActivities}
+      evidenceResponses={evidenceResponses}
+      onContradictionCause={(category, cause) =>
+        setState((current) => ({ ...current, contradictionCauses: { ...current.contradictionCauses, [category]: cause } }))
+      }
       onBackToMap={onBackToEvidenceMap}
       onTryAnotherCase={() => {
         setState(createNextScenarioState(state));

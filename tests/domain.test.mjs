@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
@@ -1038,4 +1038,165 @@ test("evidence review collects one preference for each activity group", () => {
   assert.match(source, /What you have done/);
   assert.match(source, /How this group appears in your career options/);
   assert.doesNotMatch(source, /Review one activity at a time|Next activity/);
+});
+
+const { computePreferenceFindings, selectHeadlineFinding } = loadTypeScriptModule("lib/evidence/preferenceShift.ts");
+
+const shiftActivity = (id, category) => ({ id, canonicalId: id, label: id, category, originalLabel: id, originalLabels: [], originalEvidence: [], sources: [], recurrenceCount: 1, components: [], careerTransfers: {}, mappingStatus: "mapped" });
+const shiftAspect = (id, label, category) => ({ id, label, role: "management-consultant", category });
+
+test("a preference that survives contact with the work is recorded as confirmed, not as news", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "more" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "shift");
+  assert.equal(findings[0].direction, "confirmed");
+  assert.equal(findings[0].isContradiction, false);
+});
+
+test("wanting more beforehand and less after doing the work is flagged as a contradiction", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "less" },
+  });
+  assert.equal(findings[0].direction, "cooled");
+  assert.equal(findings[0].isContradiction, true);
+  assert.equal(findings[0].imagined, "more");
+  assert.equal(findings[0].informed, "less");
+});
+
+test("work the user has no evidence for yields first evidence, never a shift", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Structuring ambiguous problems", "Product & Strategy")],
+    activityReflections: { t1: "more" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "first-evidence");
+  assert.equal(findings[0].category, "Product & Strategy");
+});
+
+test("an experiment produces both a shift and first evidence without being assembled per user", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Structuring ambiguous problems", "Product & Strategy")],
+    activityReflections: { t1: "same", t2: "more" },
+  });
+  assert.equal(findings.length, 2);
+  assert.equal(findings.find((finding) => finding.category === "Analysis").kind, "shift");
+  assert.equal(findings.find((finding) => finding.category === "Product & Strategy").kind, "first-evidence");
+});
+
+test("still needing more experience is kept as an answer and never averaged away", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "not_sure" },
+  });
+  assert.equal(findings[0].kind, "unresolved");
+  assert.equal(findings[0].imagined, "more");
+});
+
+test("aspects in one group that disagree are reported as mixed rather than averaged", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Comparing policy options", "Analysis")],
+    activityReflections: { t1: "more", t2: "less" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "mixed");
+});
+
+test("aspects the user never reacted to produce no finding at all", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: {},
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("a contradiction outranks a confirmed preference as the headline", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis"), shiftActivity("a2", "Communication")],
+    evidenceResponses: { a1: { preference: "more" }, a2: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Client presentations", "Communication")],
+    activityReflections: { t1: "more", t2: "less" },
+  });
+  const headline = selectHeadlineFinding(findings);
+  assert.equal(headline.category, "Communication");
+  assert.equal(headline.isContradiction, true);
+});
+
+test("preference shift never reads experiment performance", () => {
+  const source = readFileSync(resolve(root, "lib/evidence/preferenceShift.ts"), "utf8");
+  assert.doesNotMatch(source, /rubric|evaluation|rating|score|criteri/i);
+});
+
+test("skill vocabulary stays internal and never reaches a screen", () => {
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(resolve(root, dir), { withFileTypes: true })) {
+      const next = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(next);
+      else if (entry.name.endsWith(".tsx")) files.push(next);
+    }
+  };
+  walk("components");
+  walk("app");
+
+  // Anything that looks like code rather than copy. Property access such as
+  // `analysis.skills` is allowed; a sentence shown to a User is not.
+  const looksLikeCode = /[;=(){}[\]!]|=>|\.\w/;
+  const offences = [];
+
+  for (const file of files) {
+    const source = readFileSync(resolve(root, file), "utf8");
+    const jsxText = [...source.matchAll(/>([^<>{}]{4,})</g)].map((match) => match[1]);
+    const copyStrings = [...source.matchAll(/"([^"]*\s[^"]*)"/g)].map((match) => match[1]);
+    for (const text of [...jsxText, ...copyStrings]) {
+      if (looksLikeCode.test(text)) continue;
+      if (/\bskills?\b/i.test(text)) offences.push(`${file}: ${text.trim().slice(0, 60)}`);
+    }
+  }
+
+  assert.deepEqual(offences, [], `User-facing copy must say "activity", not "skill":\n${offences.join("\n")}`);
+});
+
+test("a contradiction is questioned once, and the answer is never inferred", () => {
+  const { createInitialExperimentState } = loadTypeScriptModule("lib/experiments/experimentState.ts");
+  const state = createInitialExperimentState(["product-manager", "management-consultant"]);
+  assert.deepEqual(state.contradictionCauses, {}, "no cause is assumed before the user answers");
+
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // The question is asked only when recall and experience actually disagreed.
+  assert.match(source, /isContradiction && \(\s*<div className="contradiction-question">/s);
+  assert.match(source, /This kind of work/);
+  assert.match(source, /Something about this particular task/);
+  // One question, per the attention budget in CONTEXT.md.
+  assert.equal((source.match(/contradiction-question/g) ?? []).length, 1);
+  // A task-specific answer must not be recorded as a fact about the work.
+  assert.match(source, /Recorded as evidence about this task, not about the work/);
+});
+
+test("a confirmed preference is never questioned", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "more" },
+  });
+  const headline = selectHeadlineFinding(findings);
+  assert.equal(headline.isContradiction, false, "no question is raised when the preference held");
 });
