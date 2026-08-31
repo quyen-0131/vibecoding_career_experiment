@@ -28,6 +28,25 @@ Open http://localhost:3000 after starting the app.
     -> complete a supported work trial
     -> reflect on new evidence
 
+## Design and decisions
+
+Why the product is built this way, and what it deliberately refuses to do.
+
+- [The case](docs/the-case.md) - the problem, why quizzes, information and counsellors do not answer it, and the honest limits
+- [CONTEXT.md](CONTEXT.md) - the glossary: what each term means and which distinctions the product depends on
+- [Architecture decision records](docs/adr/) - the decisions, and why the alternatives were rejected
+
+The decisions in short:
+
+| ADR | Decision |
+| --- | --- |
+| [0001](docs/adr/0001-direction-not-verdict.md) | The product ends with a direction, never a verdict |
+| [0002](docs/adr/0002-performance-never-routes.md) | Experiment performance never routes the recommendation |
+| [0003](docs/adr/0003-rank-by-what-separates-the-options.md) | A direction ranks by what separates the two career options |
+| [0004](docs/adr/0004-pairwise-comparison.md) | A comparison is always exactly two career options |
+| [0005](docs/adr/0005-contradictions-are-questioned-not-resolved.md) | A contradiction is surfaced and questioned, never overwritten |
+| [0006](docs/adr/0006-experiments-are-role-shaped.md) | An experiment is shaped by the role, not by a user's evidence gaps |
+
 ## Portfolio materials
 
 - [Current case study](docs/PORTFOLIO_CASE_STUDY.md)
@@ -67,6 +86,7 @@ Never commit the local environment file or expose an API key in client-side code
 | data/generated and data/raw | Local O*NET-derived role references |
 | lib/extraction | Resume experience extraction |
 | lib/evidence | Mapping, ranking, grouping, coverage, and synthesis |
+| lib/evidence/preferenceShift.ts | Imagined preference against informed preference |
 | data/roleTrials | Tasks and rubrics |
 | lib/experiments | Experiment state |
 | app/api/evaluate-experiment | Server evaluator |
