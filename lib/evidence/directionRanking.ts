@@ -32,6 +32,10 @@ export type RankedUnknown = {
    * the career x activity grid is authored, so this matters most for the
    * careers that are mapped least.
    */
+  /** What this work actually is, in the leaning career's own terms. */
+  description?: string;
+  /** A concrete way to try it, so the Direction names an action not a phrase. */
+  howToTry?: string;
   bothStated: boolean;
 };
 
@@ -68,6 +72,8 @@ export function rankUnknownsBySeparation({ careers, confirmedActivityIds }: Rank
       separation,
       importanceByCareer: { [careerA]: inA, [careerB]: inB } as Partial<Record<CareerId, CareerImportance>>,
       leansToward: separation === 0 ? undefined : importanceRank[inA] > importanceRank[inB] ? careerA : careerB,
+      description: getCareerActivity(importanceRank[inA] >= importanceRank[inB] ? careerA : careerB, activityId).description,
+      howToTry: definition?.howToTry,
       bothStated: statedA && statedB,
     };
   });

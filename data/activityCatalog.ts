@@ -7,10 +7,16 @@ export type ActivityDefinition = {
   label: string;
   category: ActivityCategory;
   patterns: RegExp[];
+  /**
+   * A concrete way a student could try this in a term, without connections or
+   * an internship. The Direction names an activity; without this it only tells
+   * the User a phrase, not an action. See docs/adr/0003.
+   */
+  howToTry?: string;
 };
 
 export const activityCatalog: ActivityDefinition[] = [
-  { id: "user-research", label: "User and customer research", category: "Research", patterns: [/user research/i, /customer research/i, /customer interview/i, /user interview/i, /interviewed\s+(users|customers)/i] },
+  { id: "user-research", label: "User and customer research", category: "Research", patterns: [/user research/i, /customer research/i, /customer interview/i, /user interview/i, /interviewed\s+(users|customers)/i], howToTry: "Interview five people who use something you are curious about. Ask what they did last time, not what they would do." },
   { id: "research-design", label: "Research design", category: "Research", patterns: [/research design/i, /design(?:ed|ing)?\s+.*(study|research|survey)/i, /research method/i] },
   { id: "market-research", label: "Market research", category: "Research", patterns: [/market research/i, /competitive research/i, /market landscape/i, /competitor analysis/i] },
   { id: "usability-testing", label: "Usability testing", category: "Research", patterns: [/usability test/i, /prototype test/i, /user test/i] },
@@ -26,18 +32,18 @@ export const activityCatalog: ActivityDefinition[] = [
   { id: "data-visualisation", label: "Data visualisation", category: "Analysis", patterns: [/data visuali/i, /dashboard/i, /tableau/i, /power bi/i] },
   { id: "insight-synthesis", label: "Insight synthesis", category: "Analysis", patterns: [/synthesi/i, /combined findings/i, /translated\s+.*insight/i, /identified\s+.*insight/i] },
   { id: "causal-evaluation", label: "Causal evaluation", category: "Analysis", patterns: [/causal evaluat/i, /causal inference/i, /impact evaluat/i, /randomi[sz]ed control/i] },
-  { id: "market-sizing", label: "Market sizing", category: "Analysis", patterns: [/market siz/i, /total addressable market/i, /tam analysis/i] },
-  { id: "financial-analysis", label: "Financial analysis", category: "Analysis", patterns: [/financial analys/i, /financial model/i, /business case/i, /revenue model/i] },
-  { id: "client-presentation", label: "Client presentations", category: "Communication", patterns: [/presented\s+.*client/i, /client presentation/i, /presented findings/i, /presented recommendations/i] },
-  { id: "stakeholder-communication", label: "Stakeholder and client communication", category: "Communication", patterns: [/client communication/i, /work(?:ed|ing)?\s+with\s+.*clients?/i, /advised clients/i, /client-facing/i, /stakeholder/i, /cross-functional/i, /aligned\s+.*team/i, /communicated\s+.*team/i, /liais(?:e|ed|ing)/i, /government authorit/i, /external partner/i] },
-  { id: "programme-design", label: "Programme design", category: "Planning & Design", patterns: [/program(?:me)? development/i, /design(?:ed|ing)?\s+.*program(?:me)?/i, /course design/i, /learning design/i] },
+  { id: "market-sizing", label: "Market sizing", category: "Analysis", patterns: [/market siz/i, /total addressable market/i, /tam analysis/i], howToTry: "Estimate the number of students in your city who would pay for something you use. Write down each assumption so someone can challenge it." },
+  { id: "financial-analysis", label: "Financial analysis", category: "Analysis", patterns: [/financial analys/i, /financial model/i, /business case/i, /revenue model/i], howToTry: "Build a simple budget for a real event or society: what it costs, what it earns, and what breaks it." },
+  { id: "client-presentation", label: "Client presentations", category: "Communication", patterns: [/presented\s+.*client/i, /client presentation/i, /presented findings/i, /presented recommendations/i], howToTry: "Present a recommendation to people who can push back, and write down which question you could not answer." },
+  { id: "stakeholder-communication", label: "Stakeholder and client communication", category: "Communication", patterns: [/client communication/i, /work(?:ed|ing)?\s+with\s+.*clients?/i, /advised clients/i, /client-facing/i, /stakeholder/i, /cross-functional/i, /aligned\s+.*team/i, /communicated\s+.*team/i, /liais(?:e|ed|ing)/i, /government authorit/i, /external partner/i], howToTry: "Get two people who disagree to agree on one next step, and write down what actually moved them." },
+  { id: "programme-design", label: "Programme design", category: "Planning & Design", patterns: [/program(?:me)? development/i, /design(?:ed|ing)?\s+.*program(?:me)?/i, /course design/i, /learning design/i], howToTry: "Design a small programme for a real group - a workshop series for your society - with what it changes and how you would know." },
   { id: "programme-implementation", label: "Programme implementation", category: "Execution", patterns: [/program(?:me)?\s+(?:implementation|delivery)/i, /implement(?:ed|ing)?\s+.*program(?:me)?/i, /deliver(?:ed|ing)?\s+.*program(?:me)?/i] },
   { id: "programme-evaluation", label: "Programme evaluation", category: "Analysis", patterns: [/program(?:me)? evaluation/i, /evaluat(?:e|ed|ing)\s+.*program(?:me)?/i] },
   { id: "product-launch-planning", label: "Product launch planning", category: "Product & Strategy", patterns: [/product launch/i, /go-to-market launch/i, /launch toolkit/i] },
   { id: "enablement-materials", label: "Enablement and decision materials", category: "Written Work", patterns: [/launch toolkit/i, /toolkit/i, /one[- ]pager/i, /recommendation brief/i] },
   { id: "learning-design", label: "Learning and onboarding design", category: "Planning & Design", patterns: [/onboarding course/i, /learning strategy/i, /learning process/i, /learning programme/i, /learning program/i] },
   { id: "partnership-development", label: "Partnership development", category: "Product & Strategy", patterns: [/partnership/i, /partner strategy/i, /partner development/i] },
-  { id: "report-writing", label: "Report and recommendation writing", category: "Communication", patterns: [/wrote\s+.*report/i, /writ(?:e|ing|ten)\s+.*report/i, /creat(?:e|ed|ing)\s+.*report/i, /report writing/i, /recommendation report/i, /research report/i, /strategic report/i] },
+  { id: "report-writing", label: "Report and recommendation writing", category: "Communication", patterns: [/wrote\s+.*report/i, /writ(?:e|ing|ten)\s+.*report/i, /creat(?:e|ed|ing)\s+.*report/i, /report writing/i, /recommendation report/i, /research report/i, /strategic report/i], howToTry: "Write a two-page recommendation for a real decision, then cut it to one page without losing the argument." },
   { id: "proposal-development", label: "Proposal development", category: "Product & Strategy", patterns: [/proposals?/i, /grant application/i, /business case/i] },
   { id: "persuasive-writing", label: "Persuasive business writing", category: "Written Work", patterns: [/grant application/i, /persuasive writ/i, /proposal writ/i] },
   { id: "needs-assessment", label: "Needs assessment", category: "Research", patterns: [/needs assessment/i, /understand(?:ing)?\s+.*(?:community|customer|user|organisation|organization)(?:s['â€™]|['â€™]s|s)?\s+(?:needs?|problems?|pain points?)/i, /(?:customer|user)(?:s['â€™]|['â€™]s|s)?\s+(?:needs?|problems?|pain points?)\s+(?:identification|discovery|assessment)/i] },
@@ -56,33 +62,33 @@ export const activityCatalog: ActivityDefinition[] = [
       /(?:improv(?:e|ed|ing)|enhanc(?:e|ed|ing)|increas(?:e|ed|ing))\b.{0,80}\b(?:efficiency|throughput|turnaround|cycle time)\b.{0,120}\b(?:process(?:es|ing)?|workflow(?:s)?|procedure(?:s)?|operations?|case[- ]processing|reporting)\b/i,
     ],
   },
-  { id: "product-delivery", label: "Product delivery and iteration", category: "Execution", patterns: [/product delivery/i, /shipped\s+.*product/i, /product iteration/i, /release plan/i] },
+  { id: "product-delivery", label: "Product delivery and iteration", category: "Execution", patterns: [/product delivery/i, /shipped\s+.*product/i, /product iteration/i, /release plan/i], howToTry: "Ship something small end to end: a club sign-up page, a tool your course needs. The learning is in the last 10%, not the build." },
   { id: "programming", label: "Programming and data tooling", category: "Analysis", patterns: [/python/i, /sql/i, /javascript/i, /programming/i, /software development/i] },
-  { id: "problem-framing", label: "Problem framing", category: "Product & Strategy", patterns: [/problem fram/i, /defined\s+.*problem/i, /structured\s+.*problem/i, /problem statement/i, /(?:customer|user)(?:s['â€™]|['â€™]s|s)?\s+(?:needs?|problems?|pain points?)\s+(?:identification|discovery)/i] },
-  { id: "product-prioritisation", label: "Product prioritisation", category: "Product & Strategy", patterns: [/product priorit/i, /roadmap priorit/i, /prioritised\s+.*feature/i, /prioritized\s+.*feature/i] },
-  { id: "strategic-recommendations", label: "Strategic recommendations", category: "Product & Strategy", patterns: [/strategic recommendation/i, /strategy recommendation/i, /recommended\s+.*strategy/i, /business recommendation/i] },
-  { id: "product-strategy", label: "Product strategy", category: "Product & Strategy", patterns: [/product strategy/i, /product vision/i, /product roadmap/i] },
+  { id: "problem-framing", label: "Problem framing", category: "Product & Strategy", patterns: [/problem fram/i, /defined\s+.*problem/i, /structured\s+.*problem/i, /problem statement/i, /(?:customer|user)(?:s['â€™]|['â€™]s|s)?\s+(?:needs?|problems?|pain points?)\s+(?:identification|discovery)/i], howToTry: "Take a complaint you have heard repeatedly and rewrite it as a problem statement: who, in what situation, and what happens today instead." },
+  { id: "product-prioritisation", label: "Product prioritisation", category: "Product & Strategy", patterns: [/product priorit/i, /roadmap priorit/i, /prioritised\s+.*feature/i, /prioritized\s+.*feature/i], howToTry: "Take a product you use and a real constraint - one term, one person. List five things it could do next, pick one, and write a page explaining what you cut and why. Show it to someone who disagrees." },
+  { id: "strategic-recommendations", label: "Strategic recommendations", category: "Product & Strategy", patterns: [/strategic recommendation/i, /strategy recommendation/i, /recommended\s+.*strategy/i, /business recommendation/i], howToTry: "Write a one-page recommendation on a decision your society or team faces: the option, the reasoning, the trade-off you accepted, and what would change your mind." },
+  { id: "product-strategy", label: "Product strategy", category: "Product & Strategy", patterns: [/product strategy/i, /product vision/i, /product roadmap/i], howToTry: "Pick a company you follow and write one page on what it should do next year and what it should stop doing. Tie each claim to something public." },
   { id: "strategy-development", label: "Strategy development", category: "Product & Strategy", patterns: [/strategy development/i, /develop(?:ed|ing)?\s+.*strategy/i, /strategy roadmap/i, /learning strategy/i] },
-  { id: "roadmap-planning", label: "Roadmap planning", category: "Planning & Design", patterns: [/roadmap/i] },
-  { id: "process-design", label: "Process design", category: "Planning & Design", patterns: [/process design/i, /systemis(?:e|ed|ing)/i, /systemiz(?:e|ed|ing)/i] },
+  { id: "roadmap-planning", label: "Roadmap planning", category: "Planning & Design", patterns: [/roadmap/i], howToTry: "Sequence a real project you are part of into three months, then write what has to be true for month two to start on time." },
+  { id: "process-design", label: "Process design", category: "Planning & Design", patterns: [/process design/i, /systemis(?:e|ed|ing)/i, /systemiz(?:e|ed|ing)/i], howToTry: "Map how something actually works at a place you know, find the step everyone complains about, and propose one change." },
   { id: "requirements-clarification", label: "Requirements clarification", category: "Planning & Design", patterns: [/requirements?/i, /clarif(?:y|ied|ying)\s+.*needs/i] },
   { id: "user-story-development", label: "Creating user stories", category: "Written Work", patterns: [/user stor(?:y|ies)/i] },
-  { id: "structured-problem-solving", label: "Structured problem-solving", category: "Analysis", patterns: [/structured framework/i, /framework\s+to\s+diagnos/i, /structured problem/i] },
+  { id: "structured-problem-solving", label: "Structured problem-solving", category: "Analysis", patterns: [/structured framework/i, /framework\s+to\s+diagnos/i, /structured problem/i], howToTry: "Take an ambiguous question - why is attendance falling at your society - and break it into a tree of answerable sub-questions before gathering any data." },
   { id: "organisational-analysis", label: "Organisational analysis", category: "Analysis", patterns: [/organi[sz]ational problem/i, /organi[sz]ational analys/i, /organi[sz]ational diagnos/i] },
   { id: "stakeholder-alignment", label: "Stakeholder alignment", category: "Communication", patterns: [/stakeholder alignment/i, /align(?:ed|ing)?\s+.*stakeholder/i, /align(?:ed|ing)?\s+.*team/i] },
-  { id: "success-measures", label: "Defining success measures", category: "Analysis", patterns: [/success metric/i, /success measure/i, /measure(?:d|ment)?\s+.*success/i] },
+  { id: "success-measures", label: "Defining success measures", category: "Analysis", patterns: [/success metric/i, /success measure/i, /measure(?:d|ment)?\s+.*success/i], howToTry: "For a project already running, define what would count as it working, and what evidence would tell you it is not." },
   { id: "opportunity-sizing", label: "Opportunity sizing", category: "Product & Strategy", patterns: [/opportunity siz/i, /estimated\s+.*opportunity/i, /business opportunity/i] },
   { id: "experimentation", label: "Experiment design and iteration", category: "Product & Strategy", patterns: [/experiment design/i, /designed\s+.*experiment/i, /a\/b test/i, /hypothesis test/i] },
   { id: "intervention-design", label: "Behavioural intervention design", category: "Product & Strategy", patterns: [/intervention design/i, /designed\s+.*intervention/i, /behavioural intervention/i, /behavioral intervention/i] },
   { id: "growth-strategy", label: "Growth strategy", category: "Product & Strategy", patterns: [/growth strategy/i, /acquisition strategy/i, /activation strategy/i, /growth initiative/i] },
-  { id: "technical-tradeoffs", label: "Technical trade-off decisions", category: "Product & Strategy", patterns: [/technical trade.?off/i, /technical constraint/i, /engineering constraint/i] },
+  { id: "technical-tradeoffs", label: "Technical trade-off decisions", category: "Product & Strategy", patterns: [/technical trade.?off/i, /technical constraint/i, /engineering constraint/i], howToTry: "Sit in on a build decision - a hackathon, a club's website - and write up the trade-off in plain language afterwards." },
   { id: "engineering-collaboration", label: "Working with engineering", category: "Execution", patterns: [/worked with engineering/i, /engineering team/i, /software engineer/i, /developer collaboration/i] },
   // Building, scoping and client-brief work. A single CV sentence can match
   // several of these: the catalogue is applied to the whole text, so one
   // achievement breaks into the activities it actually contains.
-  { id: "prototyping-building", label: "Prototyping and building", category: "Execution", patterns: [/prototype/i, /\bmvp\b/i, /demo[- ]ready/i, /(?:built|build|building|shipped|shipping)\b[^.]{0,40}\b(?:app|application|prototype|demo|feature|website|platform)\b/i, /vibe[- ]cod/i] },
-  { id: "scoping-under-constraint", label: "Scoping work under constraint", category: "Product & Strategy", patterns: [/scoping\s+a/i, /scoped\s+(?:a|the)/i, /time[- ]?boxed/i, /in (?:one|a single|1) (?:day|week|sprint)/i, /within (?:a|one) (?:day|week|sprint)/i, /from brief to/i] },
-  { id: "client-brief-work", label: "Working to a client brief", category: "Product & Strategy", patterns: [/(?:live|real|real[- ]world|client|industry)\s+brief/i, /against a .{0,30}brief/i, /brief from a/i] },
+  { id: "prototyping-building", label: "Prototyping and building", category: "Execution", patterns: [/prototype/i, /\bmvp\b/i, /demo[- ]ready/i, /(?:built|build|building|shipped|shipping)\b[^.]{0,40}\b(?:app|application|prototype|demo|feature|website|platform)\b/i, /vibe[- ]cod/i], howToTry: "Build the smallest version of an idea you can show someone: a clickable mock or an AI-assisted prototype. One weekend, not one term." },
+  { id: "scoping-under-constraint", label: "Scoping work under constraint", category: "Product & Strategy", patterns: [/scoping\s+a/i, /scoped\s+(?:a|the)/i, /time[- ]?boxed/i, /in (?:one|a single|1) (?:day|week|sprint)/i, /within (?:a|one) (?:day|week|sprint)/i, /from brief to/i], howToTry: "Take a brief you find intimidating and give yourself one day. The constraint is the exercise." },
+  { id: "client-brief-work", label: "Working to a client brief", category: "Product & Strategy", patterns: [/(?:live|real|real[- ]world|client|industry)\s+brief/i, /against a .{0,30}brief/i, /brief from a/i], howToTry: "Find a real brief - a local charity, a student venture, a case competition - and work to their goal rather than your own." },
 ];
 
 export function getActivityDefinition(id: string) {

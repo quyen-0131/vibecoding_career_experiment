@@ -1029,3 +1029,14 @@ textarea { resize: vertical; }
   line-height: 1.5;
 }
 .preference-shift > small, .direction-next > small { display: block; margin-top: 14px; font-size: 11px; }
+
+/* The direction names an activity; these say what it means and what to do. */
+.direction-next .direction-meaning { color: #cfe3d6; }
+.direction-next .direction-how {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .08);
+  color: #eaf3ed;
+}
+.direction-next .direction-how strong { color: #ffffff; }

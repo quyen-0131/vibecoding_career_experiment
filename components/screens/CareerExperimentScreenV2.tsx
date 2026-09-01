@@ -446,10 +446,13 @@ function RoleReactionScreen({ role, trial, onPreference, onToggleReaction, onEvi
   );
 }
 
-function ActivityReflectionScreen({ state, onChange, onBack, onContinue }: { state: CareerExperimentState; onChange: (id: string, value: ActivityReaction) => void; onBack: () => void; onContinue: () => void }) {
-  const activities = getTaskSequence(state.mode, state.selectedCareers).flatMap((role) => roleTrials[role].activities);
+function ActivityReflectionScreen({ state, role, isLastRole, onChange, onBack, onContinue }: { state: CareerExperimentState; role: CareerTaskId; isLastRole: boolean; onChange: (id: string, value: ActivityReaction) => void; onBack: () => void; onContinue: () => void }) {
+  // One role at a time, immediately after its trial: rating product work from
+  // memory after a consulting exercise produces worse evidence than rating it
+  // while the work is still fresh.
+  const activities = roleTrials[role].activities;
   const answered = activities.every((activity) => state.activityReflections[activity.id]);
-  return <section className="screen wide-screen experiment-screen"><StageMeta stage="activity-reflection" /><div className="eyebrow">Career → activities → evidence</div><h1>Which kinds of work would you want more or less of?</h1><p className="lead compact">React to the activities, not the career titles. Preference and performance remain separate.</p><div className="activity-reflection-list">{activities.map((activity) => <article key={activity.id}><span>{roleTrials[activity.role].roleTitle}</span><strong>{activity.label}</strong><ChoiceGroup label="Future preference" options={activityOptions} labels={activityReactionLabels} value={state.activityReflections[activity.id]} onChange={(value: ActivityReaction) => onChange(activity.id, value)} /></article>)}</div><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!answered} onClick={onContinue}>Compare the work <span aria-hidden="true">→</span></button></div></section>;
+  return <section className="screen wide-screen experiment-screen"><StageMeta stage="activity-reflection" /><div className="eyebrow">{roleTrials[role].roleTitle} · the work you just did</div><h1>Which parts of this work would you want more or less of?</h1><p className="lead compact">These are the elements of the {roleTrials[role].roleTitle} task you have just completed. React to the work itself, not the job title. Preference and performance remain separate.</p><div className="activity-reflection-list">{activities.map((activity) => <article key={activity.id}><span>{activity.category}</span><strong>{activity.label}</strong><ChoiceGroup label="Future preference" options={activityOptions} labels={activityReactionLabels} value={state.activityReflections[activity.id]} onChange={(value: ActivityReaction) => onChange(activity.id, value)} /></article>)}</div><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!answered} onClick={onContinue}>{isLastRole ? "Compare the work" : "Continue to the next role"} <span aria-hidden="true">→</span></button></div></section>;
 }
 
 function ComparisonReflectionScreen({ state, onChange, onBack, onContinue }: { state: CareerExperimentState; onChange: (patch: Partial<CareerExperimentState>) => void; onBack: () => void; onContinue: () => void }) {
@@ -600,6 +603,12 @@ function DirectionSection({
     <section className="cross-career-synthesis direction-next">
       <span>What to explore next</span>
       <h2>Get some experience of {unknown.label.toLowerCase()}.</h2>
+      {unknown.description && <p className="direction-meaning">{unknown.description}</p>}
+      {unknown.howToTry && (
+        <p className="direction-how">
+          <strong>One way to try it:</strong> {unknown.howToTry}
+        </p>
+      )}
       {leaning && otherTitle && (
         <p>
           It is {unknown.importanceByCareer[unknown.leansToward!]?.toLowerCase()} work for a {leaning} and
@@ -897,16 +906,19 @@ export function CareerExperimentScreen({
       : [...state.completedCareerTasks, role];
     const next = getNextRole(state.mode, careers, completed);
     updateTrial(role, { completed: true });
+    // Reflect on this role's activities now, while the work is fresh, then
+    // move on to the next role or to the comparison.
+    if (state.mode === "comparison") {
+      moveTo("activity-reflection", { completedCareerTasks: completed, activeRole: role });
+      return;
+    }
     if (next) {
       moveTo(state.isDevelopmentPreview ? "revision-result" : "role-primer", {
         completedCareerTasks: completed,
         activeRole: next,
       });
     } else {
-      moveTo(state.mode === "comparison" ? "activity-reflection" : "summary", {
-        completedCareerTasks: completed,
-        activeRole: undefined,
-      });
+      moveTo("summary", { completedCareerTasks: completed, activeRole: undefined });
     }
   };
 
@@ -1075,9 +1087,16 @@ export function CareerExperimentScreen({
     );
   }
   if (state.stage === "activity-reflection") {
+    const reflectingRole = state.activeRole ?? state.completedCareerTasks.at(-1);
+    if (!reflectingRole) return null;
+    const sequence = getTaskSequence(state.mode, state.selectedCareers);
+    const nextRole = getNextRole(state.mode, careers, state.completedCareerTasks);
+    const isLastRole = sequence.indexOf(reflectingRole) === sequence.length - 1 || !nextRole;
     return (
       <ActivityReflectionScreen
         state={state}
+        role={reflectingRole}
+        isLastRole={isLastRole}
         onChange={(id, value) =>
           setState((current) => ({
             ...current,
@@ -1087,11 +1106,12 @@ export function CareerExperimentScreen({
             },
           }))
         }
-        onBack={() => {
-          const role = state.completedCareerTasks.at(-1);
-          if (role) moveTo("role-reaction", { activeRole: role });
-        }}
-        onContinue={() => moveTo("comparison-reflection")}
+        onBack={() => moveTo("role-reaction", { activeRole: reflectingRole })}
+        onContinue={() =>
+          isLastRole
+            ? moveTo("comparison-reflection", { activeRole: undefined })
+            : moveTo(state.isDevelopmentPreview ? "revision-result" : "role-primer", { activeRole: nextRole })
+        }
       />
     );
   }

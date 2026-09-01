@@ -616,7 +616,9 @@ test("supported experiment UI sequences primer, evaluation, revision and prefere
   assert.match(screen, /initial-attempt/);
   assert.match(screen, /revision-result/);
   assert.match(screen, /Now that you better understand how this work is approached/);
-  assert.match(screen, /Which kinds of work would you want more or less of/);
+  // Reflection is now per role, straight after that role's trial, so the
+  // heading is about the work just done rather than both roles at once.
+  assert.match(screen, /Which parts of this work would you want more or less of/);
   assert.match(screen, /Select all that apply/);
   assert.match(screen, /Do you have enough evidence to judge how this work feels/);
   assert.match(endpoint, /process\.env\.OPENAI_API_KEY/);
@@ -1540,4 +1542,35 @@ test("build patterns do not fire on unrelated achievements", () => {
       .map((activity) => activity.canonicalId);
     assert.ok(!ids.includes("prototyping-building"), `should not read as building: ${sentence}`);
   }
+});
+
+test("the direction says what the work is and how to try it, not just its name", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const top = ranked[0];
+  assert.ok(top.description && top.description.length > 20, "an activity name alone does not tell the user what it means");
+  assert.ok(top.howToTry && top.howToTry.length > 20, "and a direction with no action is not concrete");
+
+  const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(screen, /direction-meaning/);
+  assert.match(screen, /One way to try it/);
+});
+
+test("suggestions are things a student could arrange without connections", () => {
+  const { activityCatalog } = loadTypeScriptModule("data/activityCatalog.ts");
+  const withHow = activityCatalog.filter((activity) => activity.howToTry);
+  assert.ok(withHow.length >= 15, "the activities likely to be recommended carry a suggestion");
+  for (const activity of withHow) {
+    assert.doesNotMatch(activity.howToTry, /internship|apply for a job|get hired|full-time/i,
+      `"${activity.label}" suggests something the user probably cannot arrange`);
+  }
+});
+
+test("activity reflection covers one role at a time, straight after its trial", () => {
+  const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // The reflection reads one role's activities, not both roles flattened.
+  assert.match(screen, /const activities = roleTrials\[role\]\.activities;/);
+  assert.doesNotMatch(screen, /getTaskSequence\(state\.mode, state\.selectedCareers\)\.flatMap\(\(role\) => roleTrials\[role\]\.activities\)/);
+  // And completing a role routes into reflection before the next primer.
+  assert.match(screen, /moveTo\("activity-reflection", \{ completedCareerTasks: completed, activeRole: role \}\)/);
+  assert.match(screen, /Continue to the next role/);
 });
