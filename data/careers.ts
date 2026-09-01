@@ -97,6 +97,9 @@ export const careerModels: CareerModel[] = [
       activity("programme-design", "Programme design", "Limited", "Designing organisational programmes is not part of product work."),
       activity("programme-evaluation", "Programme evaluation", "Limited", "Evaluating organisational programmes sits outside the product role."),
       activity("process-design", "Implementation planning", "Limited", "Product managers plan delivery within a team rather than organisational implementation."),
+      activity("prototyping-building", "Prototyping and building", "Core", "Product managers increasingly build and test working prototypes to make an idea concrete before committing a team to it."),
+      activity("scoping-under-constraint", "Scoping work under constraint", "Core", "Product managers cut an ambiguous problem down to something a team can deliver within real limits of time and capacity."),
+      activity("client-brief-work", "Working to a client brief", "Supporting", "Product managers work to internal goals more often than to an external brief, though partner and client work does occur."),
     ],
   },
   {
@@ -229,6 +232,9 @@ export const careerModels: CareerModel[] = [
       activity("roadmap-planning", "Roadmap planning", "Supporting", "Consultants often build implementation roadmaps, though they hand them over rather than run them."),
       activity("requirements-clarification", "Clarifying requirements", "Supporting", "Consultants gather requirements during implementation work, without owning them over a product's life."),
       activity("success-measures", "Defining success measures", "Important", "Consultants define the measures that will show whether a recommendation worked."),
+      activity("prototyping-building", "Prototyping and building", "Limited", "Consultants describe what should be built; producing the working artefact sits with the client's delivery teams."),
+      activity("scoping-under-constraint", "Scoping work under constraint", "Core", "Consultants scope an ambiguous client question into work that can be answered within a fixed engagement."),
+      activity("client-brief-work", "Working to a client brief", "Core", "Consulting work begins from a client brief and is judged against it."),
     ],
   },
   {

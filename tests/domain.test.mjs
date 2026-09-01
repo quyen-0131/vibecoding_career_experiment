@@ -1397,7 +1397,10 @@ test("a project titled by name alone becomes its own experience", () => {
   const project = extractCv(projectCv).find((experience) => experience.title === "Career Experiment");
   assert.ok(project, "a project entry needs no employer and no role word");
   assert.equal(project.type, "project");
-  assert.match(project.activities.map((activity) => activity.label).join(" "), /Kiro/);
+  // The label is now canonical ("Prototyping and building"), so provenance is
+  // checked where it lives: the original CV wording, which is never discarded.
+  assert.ok(project.activities.length > 0);
+  assert.match(project.activities.map((activity) => activity.supportingText).join(" "), /Kiro/);
 });
 
 test("a short bullet mentioning projects or leadership is kept, not read as a heading", () => {
@@ -1505,4 +1508,36 @@ Research Assistant | Some Lab
   const titles = experiences.map((experience) => experience.title);
   assert.ok(titles.includes("Product Strategy Intern"));
   assert.ok(!titles.includes("Research Assistant"), "an experience carrying no evidence asks the user to confirm nothing");
+});
+
+test("one achievement breaks into the activities it actually contains", () => {
+  const experiences = extractCv(`Projects
+
+Career Experiment
+Built a working app prototype with Kiro (AI-assisted development) against a live Mandai Wildlife Group brief, scoping a business problem into a demo-ready build in one day.
+`);
+  const activities = experiences.flatMap((experience) => experience.activities);
+  const ids = activities.map((activity) => activity.canonicalId);
+  assert.ok(ids.includes("prototyping-building"), "building the thing");
+  assert.ok(ids.includes("scoping-under-constraint"), "cutting the problem down to one day");
+  assert.ok(ids.includes("client-brief-work"), "working to a live client brief");
+
+  // Once the catalogue understands a sentence it must stop appearing as an
+  // unclassified leftover.
+  assert.ok(!activities.some((activity) => activity.category === "Other"),
+    "the raw sentence should no longer land in Other");
+  for (const activity of activities) assert.notEqual(activity.category, "Other");
+});
+
+test("build patterns do not fire on unrelated achievements", () => {
+  for (const sentence of [
+    "Built a financial model for the client engagement.",
+    "Built a report on product performance.",
+    "Managed stakeholder relationships across three teams.",
+  ]) {
+    const ids = extractCv(`Work Experience\n\nAnalyst | Example\n${sentence}\n`)
+      .flatMap((experience) => experience.activities)
+      .map((activity) => activity.canonicalId);
+    assert.ok(!ids.includes("prototyping-building"), `should not read as building: ${sentence}`);
+  }
 });

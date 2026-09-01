@@ -77,6 +77,12 @@ export const activityCatalog: ActivityDefinition[] = [
   { id: "growth-strategy", label: "Growth strategy", category: "Product & Strategy", patterns: [/growth strategy/i, /acquisition strategy/i, /activation strategy/i, /growth initiative/i] },
   { id: "technical-tradeoffs", label: "Technical trade-off decisions", category: "Product & Strategy", patterns: [/technical trade.?off/i, /technical constraint/i, /engineering constraint/i] },
   { id: "engineering-collaboration", label: "Working with engineering", category: "Execution", patterns: [/worked with engineering/i, /engineering team/i, /software engineer/i, /developer collaboration/i] },
+  // Building, scoping and client-brief work. A single CV sentence can match
+  // several of these: the catalogue is applied to the whole text, so one
+  // achievement breaks into the activities it actually contains.
+  { id: "prototyping-building", label: "Prototyping and building", category: "Execution", patterns: [/prototype/i, /\bmvp\b/i, /demo[- ]ready/i, /(?:built|build|building|shipped|shipping)\b[^.]{0,40}\b(?:app|application|prototype|demo|feature|website|platform)\b/i, /vibe[- ]cod/i] },
+  { id: "scoping-under-constraint", label: "Scoping work under constraint", category: "Product & Strategy", patterns: [/scoping\s+a/i, /scoped\s+(?:a|the)/i, /time[- ]?boxed/i, /in (?:one|a single|1) (?:day|week|sprint)/i, /within (?:a|one) (?:day|week|sprint)/i, /from brief to/i] },
+  { id: "client-brief-work", label: "Working to a client brief", category: "Product & Strategy", patterns: [/(?:live|real|real[- ]world|client|industry)\s+brief/i, /against a .{0,30}brief/i, /brief from a/i] },
 ];
 
 export function getActivityDefinition(id: string) {
