@@ -1,4 +1,6 @@
 import { activityCatalog, makeCustomActivityId } from "@/data/activityCatalog";
+import { extractResumeEvidence } from "@/lib/evidence/extractResumeEvidence";
+import { inferSkills } from "@/lib/skills/inferSkills";
 import type { DetectedActivity, DetectedExperience, ExperienceType } from "@/types/prototype";
 
 const month = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
@@ -96,7 +98,47 @@ export function extractActivitiesFromExperience(text: string, experienceId: stri
       };
     });
 
-  return [...catalogActivities, ...fallbackActivities];
+  // Run the stronger signal-based matcher over each full bullet/sentence so
+  // evidence that no catalogue regex understands can still surface a canonical
+  // skill. This keeps the explicit-vs-inferred distinction because the skill's
+  // basis is re-derived downstream (normalizeActivities re-analyses the
+  // supportingText). We never assume the user liked the activity; we only
+  // record that the evidence mentions it.
+  const inferredActivities = text
+    .split(/\n|(?<=[.!?])\s+/)
+    .map((rawSentence) => rawSentence.replace(bulletPrefixPattern, "").replace(/\s+/g, " ").trim())
+    .filter((sentence) => sentence.length >= 12 && sentence.length <= 260)
+    .flatMap((sentence) => {
+      const evidence = extractResumeEvidence(sentence, { experienceId });
+      return inferSkills(evidence).map((inference) => ({
+        canonicalId: inference.skillId,
+        label: inference.label,
+        category: inference.category,
+        supportingText: sentence,
+      }));
+    });
+
+  const seenCanonicalIds = new Set([...catalogActivities, ...fallbackActivities].map((activity) => activity.canonicalId));
+  const seenSupportingText = new Set(
+    [...catalogActivities, ...fallbackActivities].map((activity) => activity.supportingText.toLowerCase()),
+  );
+  const mergedInferred = inferredActivities
+    .filter((activity) => {
+      if (seenCanonicalIds.has(activity.canonicalId)) return false;
+      if (seenSupportingText.has(activity.supportingText.toLowerCase())) return false;
+      seenCanonicalIds.add(activity.canonicalId);
+      return true;
+    })
+    .slice(0, 8)
+    .map((activity, index) => ({
+      id: `${experienceId}-${activity.canonicalId}-inferred-${index}`,
+      canonicalId: activity.canonicalId,
+      label: activity.label,
+      category: activity.category,
+      supportingText: activity.supportingText,
+    }));
+
+  return [...catalogActivities, ...fallbackActivities, ...mergedInferred];
 }
 
 function stripTrailingDate(value: string) {
@@ -118,6 +160,26 @@ export function isValidExperienceTitle(value: string) {
     !dateRangePattern.test(title) &&
     !excludedExperienceWords.test(title) &&
     !/selected to participate|responsible for|[:;]/i.test(title),
+  );
+}
+
+// A structurally-plausible title that lacks a known role keyword. It applies
+// every precision guard from isValidExperienceTitle EXCEPT the roleWords
+// requirement, so it can only be accepted when supporting structural evidence
+// (an included section heading plus following bullet/description lines) is
+// present. This broadens role coverage without inventing experiences.
+export function isStructuralExperienceTitle(value: string) {
+  const title = stripTrailingDate(value).text;
+  return Boolean(
+    title &&
+    title.length <= 70 &&
+    title.split(/\s+/).length <= 10 &&
+    !bulletPrefixPattern.test(title) &&
+    !descriptionStart.test(title) &&
+    !dateRangePattern.test(title) &&
+    !excludedExperienceWords.test(title) &&
+    !/selected to participate|responsible for|[:;]/i.test(title) &&
+    !looksLikeLocation(title),
   );
 }
 
@@ -173,9 +235,35 @@ function parseCombinedHeader(line: string, index: number, section: string): Head
   };
 }
 
+function isFollowedByDescription(lines: string[], titleIndex: number) {
+  // The next one or two lines should look like experience content (a bullet or
+  // an action/description line) for a keyword-less header to be trusted.
+  return [titleIndex + 1, titleIndex + 2]
+    .filter((index) => index >= 0 && index < lines.length)
+    .some((index) => bulletPrefixPattern.test(lines[index]) || descriptionStart.test(lines[index]));
+}
+
 function parseSplitHeader(lines: string[], titleIndex: number, section: string): HeaderCandidate | undefined {
   const titleDetails = stripTrailingDate(lines[titleIndex]);
-  if (!isValidExperienceTitle(titleDetails.text)) return undefined;
+  // Primary path: a title carrying a known role keyword. Fallback path: a
+  // structurally-plausible title with no keyword, trusted only when it sits
+  // under an included section and is immediately followed by bullet/description
+  // lines. All strict guards remain, so precision does not collapse.
+  const hasRoleKeyword = isValidExperienceTitle(titleDetails.text);
+  if (!hasRoleKeyword) {
+    // A known role keyword on an adjacent line means this line is almost
+    // certainly the organisation, not the role. Defer to the keyword title so
+    // the structural path never steals a header from the primary path.
+    const adjacentRoleTitle = [titleIndex - 2, titleIndex - 1, titleIndex + 1, titleIndex + 2]
+      .filter((index) => index >= 0 && index < lines.length)
+      .some((index) => isValidExperienceTitle(lines[index]));
+    const structural =
+      isStructuralExperienceTitle(titleDetails.text) &&
+      isIncludedSection(section) &&
+      isFollowedByDescription(lines, titleIndex) &&
+      !adjacentRoleTitle;
+    if (!structural) return undefined;
+  }
 
   const adjacentIndexes = [titleIndex - 1, titleIndex - 2, titleIndex + 1, titleIndex + 2].filter((index) => index >= 0 && index < lines.length);
   const organisationIndex = adjacentIndexes.find((index) => Boolean(getOrganisationCandidate(lines[index])));
