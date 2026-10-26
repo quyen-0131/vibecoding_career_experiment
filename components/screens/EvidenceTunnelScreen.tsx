@@ -111,6 +111,7 @@ export function EvidenceTunnelScreen({
 
       <div className="group-career-comparison">
         <p className="comparison-kicker">How this group appears in your career options</p>
+        <p className="comparison-subnote">Relationship labels like “Transferable” or “Adjacent” are inferred evidence: the local career model&apos;s interpretation, not something you have confirmed.</p>
         {careers.map((careerId, index) => {
           const career = getCareerModel(careerId);
           const mappedActivities = group.activities.map((activity) => ({

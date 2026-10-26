@@ -116,11 +116,11 @@ export default function Home() {
       {step === 1 && <WelcomeScreen onContinue={() => goTo(2)} onStartDemo={startGuidedDemo} />}
       {step === 2 && <CareerSelectionScreen selected={selectedCareers} onToggle={toggleCareer} onContinue={() => goTo(3)} onBack={() => goTo(1)} />}
       {step === 3 && <CvUploadScreen filename={uploadedCvFilename} onCvReady={loadCvEvidence} onUseSample={useSampleCv} onContinue={() => goTo(4)} onBack={() => goTo(2)} />}
-      {step === 4 && <ExperienceSelectionScreen experiences={detectedExperiences} selectedIds={selectedExperienceIds} onSelectionChange={setSelectedExperienceIds} onExperiencesChange={setDetectedExperiences} onContinue={combineSelectedExperiences} onBack={() => goTo(3)} />}
+      {step === 4 && <ExperienceSelectionScreen experiences={detectedExperiences} selectedIds={selectedExperienceIds} onSelectionChange={setSelectedExperienceIds} onExperiencesChange={setDetectedExperiences} onContinue={combineSelectedExperiences} onBack={() => goTo(3)} isGuidedDemo={isGuidedDemo} />}
       {step === 5 && <ActivityOverviewScreen activities={normalizedActivities} careers={selectedCareers} onChange={setNormalizedActivities} onContinue={startEvidenceTunnel} onBack={() => goTo(4)} />}
       {step === 6 && evidenceStage === "tunnel" && <EvidenceTunnelScreen activities={topEvidenceActivities} careers={selectedCareers} responses={evidenceResponses} currentIndex={tunnelIndex} onIndexChange={(index) => { setTunnelIndex(index); window.scrollTo({ top: 0, behavior: "smooth" }); }} onResponseChange={setEvidenceResponses} onComplete={() => showEvidenceStage("map")} onBack={() => goTo(5)} />}
       {step === 6 && evidenceStage === "map" && <StartingEvidenceMapScreen careers={selectedCareers} allActivities={topEvidenceActivities} responses={evidenceResponses} onBack={() => { setTunnelIndex(Math.max(0, getEvidenceActivityGroups(topEvidenceActivities).length - 1)); showEvidenceStage("tunnel"); }} onContinue={() => goTo(7)} />}
-      {step === 7 && <CareerExperimentScreen careers={selectedCareers} isGuidedDemo={isGuidedDemo} onBackToEvidenceMap={() => showEvidenceStage("map")} />}
+      {step === 7 && <CareerExperimentScreen careers={selectedCareers} isGuidedDemo={isGuidedDemo} startingActivities={topEvidenceActivities} startingResponses={evidenceResponses} onBackToEvidenceMap={() => showEvidenceStage("map")} onStartOver={resetPrototype} />}
     </div></main>
   );
 }

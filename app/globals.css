@@ -735,9 +735,30 @@ textarea { resize: vertical; }
 .directional-signal .performance-context { margin-top: 12px; padding-top: 12px; border-top: 1px solid #cbd9ce; }
 .directional-signal small { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; }
 
+/* One-page closing summary. */
+.closing-summary-sections { display: grid; gap: 16px; margin-top: 28px; }
+.closing-summary-block { padding: 22px 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
+.closing-summary-block.closing-next-block { background: #fbfaf6; }
+.closing-summary-kicker { display: block; color: var(--green); font-size: 9px; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.closing-summary-block h2 { margin: 8px 0 0; font-family: Georgia, serif; font-size: 22px; font-weight: 500; line-height: 1.3; }
+.closing-summary-block > p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.closing-summary-block > ul { margin: 10px 0 0; padding-left: 18px; color: #56615a; font-size: 12px; line-height: 1.5; display: grid; gap: 6px; }
+.closing-recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; align-items: start; }
+.closing-recap-grid article { padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 254, 249, .74); }
+.closing-recap-grid h3 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 17px; font-weight: 500; }
+.closing-recap-grid article > div + div { margin-top: 10px; }
+.closing-recap-grid strong { display: block; color: var(--green-dark); font-size: 10px; }
+.closing-recap-grid p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.closing-recap-grid ul { margin: 5px 0 0; padding-left: 16px; color: #56615a; font-size: 11px; line-height: 1.45; display: grid; gap: 4px; }
+
+.comparison-subnote { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.provenance-kind { display: block; color: var(--green); font-size: 8px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.guided-demo-hint { margin: 14px 0 0; padding: 10px 14px; border: 1px solid #b8cbbd; border-radius: 12px; background: #edf4ee; color: #47564e; font-size: 12px; line-height: 1.5; }
+
 @media (max-width: 760px) {
   .semantic-category-control, .evidence-sufficiency-options > div { grid-template-columns: 1fr; }
   .semantic-category-control { align-items: stretch; }
+  .closing-recap-grid { grid-template-columns: 1fr; }
 }
 
 /* Multiple-case experiment selection and simpler reflection guidance. */

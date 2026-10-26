@@ -4,7 +4,7 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import { createManualActivity, parsePastedActivities } from "@/lib/extraction/parseManualActivities";
 import type { DetectedExperience, ExperienceType } from "@/types/prototype";
 
-type Props = { experiences: DetectedExperience[]; selectedIds: string[]; onSelectionChange: (ids: string[]) => void; onExperiencesChange: Dispatch<SetStateAction<DetectedExperience[]>>; onContinue: (experiences: DetectedExperience[]) => void; onBack: () => void };
+type Props = { experiences: DetectedExperience[]; selectedIds: string[]; onSelectionChange: (ids: string[]) => void; onExperiencesChange: Dispatch<SetStateAction<DetectedExperience[]>>; onContinue: (experiences: DetectedExperience[]) => void; onBack: () => void; isGuidedDemo?: boolean };
 
 function activitySummary(experience: DetectedExperience) {
   return experience.activities.filter((activity) => activity.label.trim()).slice(0, 3).map((activity) => activity.label).join(" · ");
@@ -14,7 +14,7 @@ function newActivityId(experienceId: string) {
   return `${experienceId}-manual-${crypto.randomUUID()}`;
 }
 
-export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectionChange, onExperiencesChange, onContinue, onBack }: Props) {
+export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectionChange, onExperiencesChange, onContinue, onBack, isGuidedDemo = false }: Props) {
   const [editingId, setEditingId] = useState<string>();
   const [showAdd, setShowAdd] = useState(false);
   const [pastingId, setPastingId] = useState<string>();
@@ -72,6 +72,7 @@ export function ExperienceSelectionScreen({ experiences, selectedIds, onSelectio
       <div className="eyebrow">Choose the evidence that matters</div>
       <h1>Which experiences should we learn from?</h1>
       <p className="lead compact">Choose up to five experiences that best represent the work you want this comparison to learn from.</p>
+      {isGuidedDemo && <p className="guided-demo-hint">We pre-selected a few sample experiences for you, so you can simply continue, or change the selection to explore.</p>}
       <p className="purpose-note"><strong>Why we&apos;re asking</strong><span>The CV only suggests experiences and activities. Select the relevant experiences now, confirm the activities next, and tell us your preferences later.</span></p>
       {experiences.length === 0 && <div className="parser-notice"><strong>We read the file, but couldn&apos;t separate its experience layout.</strong><p>Some CVs arrange roles, organisations and dates in complex columns. Try the Word .docx version of your CV, or add the relevant experience below.</p></div>}
       <div className="experience-select-list">{experiences.map((experience) => {

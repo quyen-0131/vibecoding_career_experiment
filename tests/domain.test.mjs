@@ -548,7 +548,7 @@ test("both selected career tasks use the exact same LearnLoop scenario", () => {
 
 test("development preview skips both AI evaluations with clearly labelled sample state", () => {
   const preview = createPostEvaluationPreviewState(["product-manager", "behavioural-science-consultant"]);
-  assert.equal(preview.stage, "revision-result");
+  assert.equal(preview.stage, "summary");
   assert.equal(preview.mode, "comparison");
   assert.equal(preview.isDevelopmentPreview, true);
   for (const role of preview.selectedCareers) {
@@ -556,7 +556,14 @@ test("development preview skips both AI evaluations with clearly labelled sample
     assert.equal(preview.roleTrials[role].revisionEvaluationStatus, "success");
     assert.ok(preview.roleTrials[role].initialEvaluation);
     assert.ok(preview.roleTrials[role].revisionEvaluation);
+    // Reaction + reflection fields are pre-filled so the summary renders in one click.
+    assert.ok(preview.roleTrials[role].preferenceEvidence);
+    assert.ok(preview.roleTrials[role].workReactions.length > 0);
+    assert.ok(preview.roleTrials[role].evidenceSufficiency);
+    assert.equal(preview.roleTrials[role].completed, true);
   }
+  assert.ok(Object.keys(preview.activityReflections).length > 0);
+  assert.ok(preview.directComparisonChoice);
   const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
   assert.match(screen, /Use sample evaluation/);
   assert.match(screen, /without using API credit/);
