@@ -24,7 +24,7 @@ export function createInitialExperimentState(careers: CareerId[]): CareerExperim
 export function createPostEvaluationPreviewState(careers: CareerId[], scenarioId = learnLoopScenario.id): CareerExperimentState {
   const state = createInitialExperimentState(careers);
   const scenario = getExperimentScenario(scenarioId) ?? learnLoopScenario;
-  const roleTrialStates = Object.fromEntries(careers.map((role) => {
+  const roleTrialStates = Object.fromEntries(careers.map((role, index) => {
     const definition = roleTrials[role];
     const focus = definition.rubric[0];
     const initialEvaluation = {
@@ -55,16 +55,31 @@ export function createPostEvaluationPreviewState(careers: CareerId[], scenarioId
       },
       revisionEvaluationStatus: "success" as const,
       learningResponse,
+      // Sample reaction + sufficiency so the summary renders fully from one click.
+      preferenceEvidence: { preference: index === 0 ? ("more" as const) : ("same" as const) },
+      workReactions: [index === 0 ? ("enjoyed_problem_and_learning" as const) : ("liked_parts_not_overall" as const)],
+      evidenceSufficiency: index === 0 ? ("enough" as const) : ("need_more" as const),
+      completed: true,
     }];
   }));
+  // Sample activity reactions for every activity across both roles.
+  const activityReflections = Object.fromEntries(
+    careers.flatMap((role, index) =>
+      roleTrials[role].activities.map((activity) => [activity.id, index === 0 ? ("more" as const) : ("same" as const)]),
+    ),
+  );
   return {
     ...state,
-    stage: "revision-result",
+    stage: "summary",
     selectedQuestionId: "direct-comparison",
     mode: "comparison",
     scenarioId: scenario.id,
-    activeRole: careers[0],
+    activeRole: undefined,
+    completedCareerTasks: [...careers],
     roleTrials: roleTrialStates,
+    activityReflections,
+    directComparisonChoice: careers[0],
+    comparisonReflection: "Sample reflection: the framework felt unfamiliar at first, but the decision-making became clearer after the primer.",
     isDevelopmentPreview: true,
   };
 }

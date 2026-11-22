@@ -361,7 +361,8 @@
           "develop",
           "create",
           "define",
-          "shape"
+          "shape",
+          "set"
         ],
         "objects": [
           "strategy",
@@ -479,7 +480,9 @@
           "coordinate",
           "engage",
           "consult",
-          "align"
+          "align",
+          "collaborate",
+          "partner"
         ],
         "objects": [
           "stakeholders",
@@ -494,6 +497,12 @@
           "approval",
           "delivery",
           "agreement"
+        ],
+        "contexts": [
+          "cross-functional",
+          "across teams",
+          "different teams",
+          "design and engineering"
         ]
       },
       "onetTerms": [
@@ -666,13 +675,18 @@
           "launch",
           "prepare",
           "plan",
-          "create"
+          "create",
+          "coordinate",
+          "organise",
+          "organize"
         ],
         "objects": [
           "product launch",
           "go-to-market",
           "launch toolkit",
-          "release"
+          "release",
+          "launch",
+          "rollout"
         ],
         "outcomes": [
           "adoption",
@@ -813,13 +827,20 @@
           "experiment",
           "randomise",
           "randomize",
-          "compare"
+          "compare",
+          "build",
+          "prototype",
+          "pilot"
         ],
         "objects": [
           "hypothesis",
           "intervention",
           "variant",
-          "experiment"
+          "experiment",
+          "prototype",
+          "mvp",
+          "pilot",
+          "feature"
         ],
         "outcomes": [
           "causal effect",

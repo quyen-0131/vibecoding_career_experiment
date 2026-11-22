@@ -548,7 +548,7 @@ test("both selected career tasks use the exact same LearnLoop scenario", () => {
 
 test("development preview skips both AI evaluations with clearly labelled sample state", () => {
   const preview = createPostEvaluationPreviewState(["product-manager", "behavioural-science-consultant"]);
-  assert.equal(preview.stage, "revision-result");
+  assert.equal(preview.stage, "summary");
   assert.equal(preview.mode, "comparison");
   assert.equal(preview.isDevelopmentPreview, true);
   for (const role of preview.selectedCareers) {
@@ -556,7 +556,14 @@ test("development preview skips both AI evaluations with clearly labelled sample
     assert.equal(preview.roleTrials[role].revisionEvaluationStatus, "success");
     assert.ok(preview.roleTrials[role].initialEvaluation);
     assert.ok(preview.roleTrials[role].revisionEvaluation);
+    // Reaction + reflection fields are pre-filled so the summary renders in one click.
+    assert.ok(preview.roleTrials[role].preferenceEvidence);
+    assert.ok(preview.roleTrials[role].workReactions.length > 0);
+    assert.ok(preview.roleTrials[role].evidenceSufficiency);
+    assert.equal(preview.roleTrials[role].completed, true);
   }
+  assert.ok(Object.keys(preview.activityReflections).length > 0);
+  assert.ok(preview.directComparisonChoice);
   const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
   assert.match(screen, /Use sample evaluation/);
   assert.match(screen, /without using API credit/);
@@ -1048,6 +1055,89 @@ test("evidence review collects one preference for each activity group", () => {
   assert.match(source, /What you have done/);
   assert.match(source, /How this group appears in your career options/);
   assert.doesNotMatch(source, /Review one activity at a time|Next activity/);
+});
+
+test("detects an experience whose role title has no known role keyword", () => {
+  // "Student Success Partner" contains no roleWords keyword, so the strict
+  // keyword path rejects it; the structural path must still detect it because
+  // it sits under WORK EXPERIENCE and is followed by bullet lines.
+  const cv = [
+    "WORK EXPERIENCE",
+    "Student Success Partner",
+    "Sep 2023 – Present",
+    "• Supported students across their first year and tracked their progress",
+    "• Analysed survey data to improve the onboarding experience",
+    "EDUCATION",
+    "Bachelor of Arts",
+  ].join("\n");
+  assert.equal(isValidExperienceTitle("Student Success Partner"), false);
+  const detected = extractExperiencesFromCv(cv);
+  const partner = detected.find((experience) => experience.title === "Student Success Partner");
+  assert.ok(partner, `expected the keyword-less role to be detected; received ${detected.map((item) => item.title).join(", ") || "none"}`);
+  assert.equal(partner.type, "work");
+  assert.match(partner.description, /Supported students/);
+  // A plainly invalid input (no work section) still invents nothing.
+  assert.deepEqual(extractExperiencesFromCv("EDUCATION\nBachelor of Arts\nAWARDS\nDean's List"), []);
+});
+
+test("signal matcher surfaces a skill from full bullet text with reason, matched signals and basis", () => {
+  const bullet = "Analysed customer survey data to identify retention patterns and inform product decisions.";
+  const experience = {
+    id: "insights-role",
+    title: "Insights Partner",
+    organisation: "Example",
+    type: "work",
+    description: bullet,
+    activities: extractActivitiesFromExperience(bullet, "insights-role"),
+  };
+
+  // The full bullet text now flows through the signal-based matcher.
+  const inferred = experience.activities.find((activity) => activity.canonicalId === "quantitative-data-analysis");
+  assert.ok(inferred, `expected quantitative-data-analysis; received ${experience.activities.map((item) => item.canonicalId).join(", ") || "none"}`);
+  assert.equal(inferred.supportingText, bullet);
+
+  // Through normalisation, the explicit-vs-inferred distinction is preserved via
+  // the per-activity skill inference, with a human-readable reason and signals.
+  const normalized = normalizeActivities([experience], ["product-manager", "management-consultant"]);
+  const quantitative = normalized.find((activity) => activity.canonicalId === "quantitative-data-analysis");
+  assert.ok(quantitative);
+  const skillInference = (quantitative.skillInferences ?? []).find((item) => item.skillId === "quantitative-data-analysis");
+  assert.ok(skillInference, "expected a skillInference for quantitative-data-analysis");
+  assert.ok(skillInference.reason.length > 0);
+  assert.ok(skillInference.matchedSignals.length > 0);
+  assert.equal(skillInference.basis, "explicit");
+  assert.ok(["high", "medium", "low"].includes(skillInference.confidence));
+});
+
+test("transferable phrasing without an exact job title still surfaces a relevant inferred skill for product-manager", () => {
+  // No target job title and no exact catalogue label, only transferable wording.
+  // Recall must still land a canonical skill as inferred (weak signals), and the
+  // existing transfer layer must connect it to product-manager (not "unknown").
+  const bullet = "Cross-functional effort with stakeholders across different teams drove shared agreement.";
+  const experience = {
+    id: "transferable-role",
+    title: "Programme Partner",
+    organisation: "Example",
+    type: "work",
+    description: bullet,
+    activities: extractActivitiesFromExperience(bullet, "transferable-role"),
+  };
+
+  const stakeholder = experience.activities.find((activity) => activity.canonicalId === "stakeholder-communication");
+  assert.ok(stakeholder, `expected stakeholder-communication from transferable phrasing; received ${experience.activities.map((item) => item.canonicalId).join(", ") || "none"}`);
+
+  const evidence = extractResumeEvidence(bullet, { experienceId: "transferable-role" });
+  const inference = inferSkills(evidence).find((item) => item.skillId === "stakeholder-communication");
+  assert.ok(inference);
+  assert.ok(inference.reason.length > 0);
+  assert.ok(inference.matchedSignals.length > 0);
+  // Near-miss transferable wording (no action+object pair) stays inferred.
+  assert.equal(inference.basis, "inferred");
+
+  // (b) The existing role-relevance layer connects it to product-manager.
+  const relevance = assessSkillRoleRelevance(inference, resolveCareerId("product-manager"));
+  assert.notEqual(relevance.relationship, "unknown");
+  assert.ok(["direct", "transferable"].includes(relevance.relationship));
 });
 
 const { computePreferenceFindings, selectHeadlineFinding } = loadTypeScriptModule("lib/evidence/preferenceShift.ts");

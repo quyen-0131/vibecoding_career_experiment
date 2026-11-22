@@ -137,8 +137,9 @@ AI is used only for structured qualitative evaluation of free-text experiment re
 
 ## Limitations
 
+- Limited career choices 
 - Unusual CV layouts can still confuse deterministic parsing.
-- The activity taxonomy cannot represent every form of work.
+- The activity taxonomy cannot represent every form of work, resulting in the inconsistency or failure to match activity to the coresponding skill group and transfer it to the selected job titles. 
 - Semantic mappings and ranking weights require user validation.
 - Career profiles are prototype models, not universal definitions.
 - One work trial cannot establish objective ability or sustained career preference.

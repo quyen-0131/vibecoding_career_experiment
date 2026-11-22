@@ -20,9 +20,8 @@ export function StartingEvidenceMapScreen({ careers, allActivities, responses, o
         how the local career model interprets that work, and what remains untested.
       </p>
       <dl className="evidence-state-key">
-        <div><dt>Confirmed experience</dt><dd>You kept this activity after reviewing your CV.</dd></div>
-        <div><dt>Your group preference</dt><dd>You chose More, About the same, or Less for each activity group.</dd></div>
-        <div><dt>Career relevance</dt><dd>The prototype&apos;s local model describes how this activity appears in a career.</dd></div>
+        <div><dt>Existing evidence</dt><dd>Confirmed experience: activities you kept after reviewing your CV, plus the More / About the same / Less preference you chose for each group.</dd></div>
+        <div><dt>Inferred evidence</dt><dd>The prototype&apos;s local model infers how your activities relate to a career (for example Transferable or Adjacent). It is an interpretation, not something you confirmed.</dd></div>
         <div><dt>Unknown</dt><dd>You do not yet have enough firsthand experience to judge it.</dd></div>
       </dl>
 

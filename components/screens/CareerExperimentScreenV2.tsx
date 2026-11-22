@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChoiceGroup } from "@/components/ChoiceGroup";
+import { ClosingSummaryScreen } from "@/components/screens/ClosingSummaryScreen";
 import {
   activityReactionLabels,
   createExperimentQuestions,
@@ -63,6 +64,7 @@ const stageLabels: Partial<Record<ExperimentStage, string>> = {
   "activity-reflection": "Activity reflection",
   "comparison-reflection": "Direct comparison",
   summary: "Evidence synthesis",
+  "closing-summary": "One-page summary",
 };
 
 function applyScenarioName(value: string, scenario: ExperimentScenario) {
@@ -674,15 +676,15 @@ function SummaryScreen({
   normalizedActivities,
   evidenceResponses,
   onContradictionCause,
-  onBackToMap,
   onTryAnotherCase,
+  onSeeClosingSummary,
 }: {
   state: CareerExperimentState;
   normalizedActivities: NormalizedActivity[];
   evidenceResponses: Record<string, ActivityEvidenceResponse>;
   onContradictionCause: (category: string, cause: ContradictionCause) => void;
-  onBackToMap: () => void;
   onTryAnotherCase: () => void;
+  onSeeClosingSummary: () => void;
 }) {
   const testedRoles = getTaskSequence(state.mode, state.selectedCareers);
   const directionalSignal = buildDirectionalSignal(state, testedRoles);
@@ -762,8 +764,8 @@ function SummaryScreen({
         <button className="button secondary" type="button" onClick={onTryAnotherCase}>
           Try another case
         </button>
-        <button className="button primary" type="button" onClick={onBackToMap}>
-          Finish and return to evidence map <span aria-hidden="true">→</span>
+        <button className="button primary" type="button" onClick={onSeeClosingSummary}>
+          See the one-page summary <span aria-hidden="true">→</span>
         </button>
       </div>
     </section>
@@ -774,14 +776,20 @@ export function CareerExperimentScreen({
   normalizedActivities = [],
   evidenceResponses = {},
   isGuidedDemo = false,
+  startingActivities = [],
+  startingResponses = {},
   onBackToEvidenceMap,
+  onStartOver,
 }: {
   careers: CareerId[];
   /** Phase 1 evidence, so Phase 3 reactions can be compared with Phase 2 preferences. */
   normalizedActivities?: NormalizedActivity[];
   evidenceResponses?: Record<string, ActivityEvidenceResponse>;
   isGuidedDemo?: boolean;
+  startingActivities?: NormalizedActivity[];
+  startingResponses?: Record<string, ActivityEvidenceResponse>;
   onBackToEvidenceMap: () => void;
+  onStartOver?: () => void;
 }) {
   const [state, setState] = useState<CareerExperimentState>(() =>
     createInitialExperimentState(careers),
@@ -1125,15 +1133,28 @@ export function CareerExperimentScreen({
       />
     );
   }
+  if (state.stage === "closing-summary") {
+    const testedRoles = getTaskSequence(state.mode, state.selectedCareers);
+    return (
+      <ClosingSummaryScreen
+        state={state}
+        directionalSignal={buildDirectionalSignal(state, testedRoles)}
+        startingActivities={startingActivities}
+        startingResponses={startingResponses}
+        onBackToTrialSummary={() => moveTo("summary")}
+        onStartOver={onStartOver ?? onBackToEvidenceMap}
+      />
+    );
+  }
   return (
     <SummaryScreen
       state={state}
+      onSeeClosingSummary={() => moveTo("closing-summary")}
       normalizedActivities={normalizedActivities}
       evidenceResponses={evidenceResponses}
       onContradictionCause={(category, cause) =>
         setState((current) => ({ ...current, contradictionCauses: { ...current.contradictionCauses, [category]: cause } }))
       }
-      onBackToMap={onBackToEvidenceMap}
       onTryAnotherCase={() => {
         setState(createNextScenarioState(state));
         window.scrollTo({ top: 0, behavior: "smooth" });

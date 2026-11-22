@@ -15,7 +15,8 @@ export type ExperimentStage =
   | "role-reaction"
   | "activity-reflection"
   | "comparison-reflection"
-  | "summary";
+  | "summary"
+  | "closing-summary";
 
 export type ExperimentQuestionId = "career-a" | "career-b" | "direct-comparison" | "guided";
 export type ExperimentMode = "careerA" | "careerB" | "comparison";
