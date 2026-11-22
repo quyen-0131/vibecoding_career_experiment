@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
@@ -623,7 +623,9 @@ test("supported experiment UI sequences primer, evaluation, revision and prefere
   assert.match(screen, /initial-attempt/);
   assert.match(screen, /revision-result/);
   assert.match(screen, /Now that you better understand how this work is approached/);
-  assert.match(screen, /Which kinds of work would you want more or less of/);
+  // Reflection is now per role, straight after that role's trial, so the
+  // heading is about the work just done rather than both roles at once.
+  assert.match(screen, /Which parts of this work would you want more or less of/);
   assert.match(screen, /Select all that apply/);
   assert.match(screen, /Do you have enough evidence to judge how this work feels/);
   assert.match(endpoint, /process\.env\.OPENAI_API_KEY/);
@@ -642,8 +644,12 @@ test("experiment synthesis remains evidence-oriented and not a recommendation", 
   assert.match(getExperimentQuestionText(state), /same underlying problem/);
   const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
   assert.match(screen, /not a career recommendation/i);
-  assert.match(screen, /What your preference evidence points to/);
-  assert.match(screen, /preference signal leaned toward/);
+  // ADR 0001: the observation leads; a career name is evidence the user reasons
+  // from, never a conclusion we headline. "the preference signal leaned toward
+  // <career>" was the old heading and is exactly what the ADR forbids.
+  assert.match(screen, /What you said during the experiment/);
+  assert.doesNotMatch(screen, /preference signal leaned toward/);
+  assert.match(screen, /not a conclusion about which career suits you/);
   assert.doesNotMatch(screen, /Try another question/);
   assert.doesNotMatch(screen, /you should become|best career|career.?fit percentage|\d+% suited/i);
 });
@@ -961,9 +967,13 @@ test("transferable lens covers metrics, presentations and product strategy acros
     originalLabel: "Developed a product strategy",
     sources: [{ experienceId: "strategy-role", title: "Strategist", organisation: "Example" }],
   }, roles);
-  assert.notEqual(strategy.careerTransfers["management-consultant"].relationship, "unknown");
-  assert.equal(strategy.careerTransfers["management-consultant"].careerActivityId, "strategic-recommendations");
-  assert.match(strategy.careerTransfers["management-consultant"].rationale, /evidence, choices and trade-offs/i);
+  // Management Consultant now rates product strategy explicitly, so this
+  // resolves directly instead of reaching for an adjacent activity. The credit
+  // is lower and more honest: consultants advise on product direction, they do
+  // not own it.
+  assert.equal(strategy.careerTransfers["management-consultant"].relationship, "direct");
+  assert.equal(strategy.careerTransfers["management-consultant"].careerActivityId, "product-strategy");
+  assert.equal(strategy.careerTransfers["management-consultant"].importance, "Supporting");
 
   const recommendation = mapNormalizedActivity({
     canonicalId: "strategic-recommendations",
@@ -1128,4 +1138,529 @@ test("transferable phrasing without an exact job title still surfaces a relevant
   const relevance = assessSkillRoleRelevance(inference, resolveCareerId("product-manager"));
   assert.notEqual(relevance.relationship, "unknown");
   assert.ok(["direct", "transferable"].includes(relevance.relationship));
+});
+
+const { computePreferenceFindings, selectHeadlineFinding } = loadTypeScriptModule("lib/evidence/preferenceShift.ts");
+
+const shiftActivity = (id, category) => ({ id, canonicalId: id, label: id, category, originalLabel: id, originalLabels: [], originalEvidence: [], sources: [], recurrenceCount: 1, components: [], careerTransfers: {}, mappingStatus: "mapped" });
+const shiftAspect = (id, label, category) => ({ id, label, role: "management-consultant", category });
+
+test("a preference that survives contact with the work is recorded as confirmed, not as news", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "more" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "shift");
+  assert.equal(findings[0].direction, "confirmed");
+  assert.equal(findings[0].isContradiction, false);
+});
+
+test("wanting more beforehand and less after doing the work is flagged as a contradiction", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "less" },
+  });
+  assert.equal(findings[0].direction, "cooled");
+  assert.equal(findings[0].isContradiction, true);
+  assert.equal(findings[0].imagined, "more");
+  assert.equal(findings[0].informed, "less");
+});
+
+test("work the user has no evidence for yields first evidence, never a shift", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Structuring ambiguous problems", "Product & Strategy")],
+    activityReflections: { t1: "more" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "first-evidence");
+  assert.equal(findings[0].category, "Product & Strategy");
+});
+
+test("an experiment produces both a shift and first evidence without being assembled per user", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Structuring ambiguous problems", "Product & Strategy")],
+    activityReflections: { t1: "same", t2: "more" },
+  });
+  assert.equal(findings.length, 2);
+  assert.equal(findings.find((finding) => finding.category === "Analysis").kind, "shift");
+  assert.equal(findings.find((finding) => finding.category === "Product & Strategy").kind, "first-evidence");
+});
+
+test("still needing more experience is kept as an answer and never averaged away", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "not_sure" },
+  });
+  assert.equal(findings[0].kind, "unresolved");
+  assert.equal(findings[0].imagined, "more");
+});
+
+test("aspects in one group that disagree are reported as mixed rather than averaged", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Comparing policy options", "Analysis")],
+    activityReflections: { t1: "more", t2: "less" },
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].kind, "mixed");
+});
+
+test("aspects the user never reacted to produce no finding at all", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: {},
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("a contradiction outranks a confirmed preference as the headline", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis"), shiftActivity("a2", "Communication")],
+    evidenceResponses: { a1: { preference: "more" }, a2: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis"), shiftAspect("t2", "Client presentations", "Communication")],
+    activityReflections: { t1: "more", t2: "less" },
+  });
+  const headline = selectHeadlineFinding(findings);
+  assert.equal(headline.category, "Communication");
+  assert.equal(headline.isContradiction, true);
+});
+
+test("preference shift never reads experiment performance", () => {
+  const source = readFileSync(resolve(root, "lib/evidence/preferenceShift.ts"), "utf8");
+  assert.doesNotMatch(source, /rubric|evaluation|rating|score|criteri/i);
+});
+
+test("skill vocabulary stays internal and never reaches a screen", () => {
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(resolve(root, dir), { withFileTypes: true })) {
+      const next = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(next);
+      else if (entry.name.endsWith(".tsx")) files.push(next);
+    }
+  };
+  walk("components");
+  walk("app");
+
+  // Anything that looks like code rather than copy. Property access such as
+  // `analysis.skills` is allowed; a sentence shown to a User is not.
+  const looksLikeCode = /[;=(){}[\]!]|=>|\.\w/;
+  const offences = [];
+
+  for (const file of files) {
+    const source = readFileSync(resolve(root, file), "utf8");
+    const jsxText = [...source.matchAll(/>([^<>{}]{4,})</g)].map((match) => match[1]);
+    const copyStrings = [...source.matchAll(/"([^"]*\s[^"]*)"/g)].map((match) => match[1]);
+    for (const text of [...jsxText, ...copyStrings]) {
+      if (looksLikeCode.test(text)) continue;
+      if (/\bskills?\b/i.test(text)) offences.push(`${file}: ${text.trim().slice(0, 60)}`);
+    }
+  }
+
+  assert.deepEqual(offences, [], `User-facing copy must say "activity", not "skill":\n${offences.join("\n")}`);
+});
+
+test("a contradiction is questioned once, and the answer is never inferred", () => {
+  const { createInitialExperimentState } = loadTypeScriptModule("lib/experiments/experimentState.ts");
+  const state = createInitialExperimentState(["product-manager", "management-consultant"]);
+  assert.deepEqual(state.contradictionCauses, {}, "no cause is assumed before the user answers");
+
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // The question is asked only when recall and experience actually disagreed.
+  assert.match(source, /isContradiction && \(\s*<div className="contradiction-question">/s);
+  assert.match(source, /This kind of work/);
+  assert.match(source, /Something about this particular task/);
+  // One question, per the attention budget in CONTEXT.md.
+  assert.equal((source.match(/contradiction-question/g) ?? []).length, 1);
+  // A task-specific answer must not be recorded as a fact about the work.
+  assert.match(source, /Recorded as evidence about this task, not about the work/);
+});
+
+test("a confirmed preference is never questioned", () => {
+  const findings = computePreferenceFindings({
+    normalizedActivities: [shiftActivity("a1", "Analysis")],
+    evidenceResponses: { a1: { preference: "more" } },
+    experimentActivities: [shiftAspect("t1", "Planning strategic analysis", "Analysis")],
+    activityReflections: { t1: "more" },
+  });
+  const headline = selectHeadlineFinding(findings);
+  assert.equal(headline.isContradiction, false, "no question is raised when the preference held");
+});
+
+const { rankUnknownsBySeparation, buildDirection } = loadTypeScriptModule("lib/evidence/directionRanking.ts");
+
+test("an unknown that separates the two careers outranks one they both value", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  assert.ok(ranked.length > 0);
+  // Separation is descending within each confidence tier: ratings both careers
+  // state come first, then ones inferred from an unstated model.
+  const stated = ranked.filter((unknown) => unknown.bothStated).map((unknown) => unknown.separation);
+  assert.deepEqual(stated, [...stated].sort((a, b) => b - a), "stated separations are descending");
+  assert.ok(ranked[0].separation > 0, "the top unknown actually distinguishes the two careers");
+  assert.ok(ranked[0].bothStated, "and both careers actually rate it");
+});
+
+test("work both careers treat identically never leads the ranking", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const shared = ranked.filter((unknown) => unknown.separation === 0);
+  const distinguishing = ranked.filter((unknown) => unknown.separation > 0);
+  if (shared.length && distinguishing.length) {
+    assert.ok(ranked.indexOf(distinguishing[0]) < ranked.indexOf(shared[0]), "a shared unknown never outranks a distinguishing one");
+  }
+});
+
+test("activities the user already has evidence for are not proposed as unknowns", () => {
+  const all = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const excluded = all[0].activityId;
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [excluded] });
+  assert.ok(!ranked.some((unknown) => unknown.activityId === excluded));
+});
+
+test("a ranked unknown names which career cares about it more", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const top = ranked[0];
+  assert.ok(top.leansToward, "a distinguishing unknown leans toward one career");
+  assert.ok(["product-manager", "management-consultant"].includes(top.leansToward));
+  const shared = ranked.find((unknown) => unknown.separation === 0);
+  if (shared) assert.equal(shared.leansToward, undefined, "work valued equally leans nowhere");
+});
+
+test("the ranking is deterministic", () => {
+  const input = { careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] };
+  assert.deepEqual(rankUnknownsBySeparation(input), rankUnknownsBySeparation(input));
+});
+
+test("a contradiction blamed on the task outranks exploring something new", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: { Analysis: "this-task" } });
+  assert.equal(direction.kind, "retest");
+  assert.equal(direction.category, "Analysis");
+});
+
+test("a contradiction blamed on the work itself is settled and needs no retest", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: { Analysis: "kind-of-work" } });
+  assert.equal(direction.kind, "explore");
+});
+
+test("an unanswered contradiction does not hijack the direction", () => {
+  const findings = [{ kind: "shift", category: "Analysis", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }];
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.equal(direction.kind, "explore");
+});
+
+test("direction ranking never reads experiment performance", () => {
+  // Comments are prose: this module must describe ratings in order to explain
+  // that it never reads them. The rule is about the code.
+  const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const source = stripComments(readFileSync(resolve(root, "lib/evidence/directionRanking.ts"), "utf8"));
+  assert.doesNotMatch(source, /rubric|evaluation|rating|criteri/i);
+});
+
+test("the summary ends with a direction and refuses to name a best career", () => {
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(source, /What to explore next/);
+  // ADR 0001: a career name may appear as evidence, never as a conclusion.
+  assert.match(source, /not a recommendation to become a/);
+  assert.match(source, /This is not a career recommendation/);
+  // The direction is built from unknowns and reactions, never from performance.
+  assert.match(source, /rankUnknownsBySeparation\(\{\s*careers: state\.selectedCareers/s);
+});
+
+test("shift copy reads as English for every preference value", () => {
+  const source = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // "you wanted less it" is not English. A standalone form is needed after a pronoun.
+  assert.doesNotMatch(source, /\$\{preferenceWord\[[^\]]+\]\} it\./);
+  assert.match(source, /preferenceWordAlone = \{ more: "more of it", same: "about the same amount of it", less: "less of it" \}/);
+});
+
+const { rankCareerGaps } = loadTypeScriptModule("lib/evidence/directionRanking.ts");
+const { findCoreTensions } = loadTypeScriptModule("lib/evidence/coreTension.ts");
+
+test("all three screens rank untested work by the same rule", () => {
+  const ranked = rankCareerGaps("product-manager", "management-consultant", [], 5);
+  const separationOf = (activity) => activity.importance;
+  assert.ok(ranked.length > 0);
+  // The evidence map and the phase-3 questions now use the ranked helper.
+  const map = readFileSync(resolve(root, "lib/evidence/buildStartingEvidence.ts"), "utf8");
+  const questions = readFileSync(resolve(root, "lib/evidence/generateUncertaintyChoices.ts"), "utf8");
+  assert.match(map, /rankCareerGaps\(careerId, comparedWith/);
+  assert.match(questions, /rankCareerGaps\(career\.id, other\.id/);
+  assert.doesNotMatch(map, /getRemainingEvidenceGaps/);
+  assert.doesNotMatch(questions, /getRemainingEvidenceGaps/);
+  assert.ok(separationOf(ranked[0]));
+});
+
+test("work the user wanted less of is never recommended for further exploration", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const topCategory = ranked[0].category;
+  const findings = [{ kind: "first-evidence", category: topCategory, informed: "less", aspectLabels: [] }];
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.ok(direction.kind !== "explore" || direction.unknown.category !== topCategory, "the disliked group is skipped");
+});
+
+test("work the user wanted more of stays eligible", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const topCategory = ranked[0].category;
+  const findings = [{ kind: "first-evidence", category: topCategory, informed: "more", aspectLabels: [] }];
+  const direction = buildDirection({ rankedUnknowns: ranked, findings, contradictionCauses: {} });
+  assert.equal(direction.kind, "explore");
+  assert.equal(direction.unknown.category, topCategory);
+});
+
+test("a core tension is raised only for core work the user wanted less of", () => {
+  const careers = ["product-manager", "management-consultant"];
+  const less = findCoreTensions({ careers, findings: [{ kind: "first-evidence", category: "Product & Strategy", informed: "less", aspectLabels: [] }], contradictionCauses: {} });
+  assert.ok(less.length > 0, "core work the user wanted less of raises a tension");
+  assert.ok(less[0].coreActivityLabels.length > 0, "the tension names the concrete core activities");
+
+  const same = findCoreTensions({ careers, findings: [{ kind: "first-evidence", category: "Product & Strategy", informed: "same", aspectLabels: [] }], contradictionCauses: {} });
+  assert.deepEqual(same, [], "about the same is not a tension");
+});
+
+test("a reaction blamed on the task raises no core tension", () => {
+  const tensions = findCoreTensions({
+    careers: ["product-manager", "management-consultant"],
+    findings: [{ kind: "shift", category: "Product & Strategy", imagined: "more", informed: "less", direction: "cooled", isContradiction: true, aspectLabels: [] }],
+    contradictionCauses: { "Product & Strategy": "this-task" },
+  });
+  assert.deepEqual(tensions, [], "if it was the task, it is not evidence about the work");
+});
+
+test("core tensions are never counted, scored, or turned into a verdict", () => {
+  // Check the code, not the prose: the doc comment has to say "career-fit
+  // score" in order to explain why the module refuses to produce one.
+  const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const source = stripComments(readFileSync(resolve(root, "lib/evidence/coreTension.ts"), "utf8"));
+  assert.doesNotMatch(source, /score|percent|\.length \/|fit\b/i);
+  const ui = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(ui, /does not settle whether the career suits you/);
+});
+
+test("unresolved and mixed reactions raise no core tension", () => {
+  const careers = ["product-manager", "management-consultant"];
+  for (const kind of ["unresolved", "mixed"]) {
+    const tensions = findCoreTensions({ careers, findings: [{ kind, category: "Product & Strategy", aspectLabels: [] }], contradictionCauses: {} });
+    assert.deepEqual(tensions, [], `${kind} is not evidence about the work`);
+  }
+});
+
+const { extractExperiencesFromCv: extractCv } = loadTypeScriptModule("lib/extraction/extractExperiencesFromCv.ts");
+
+const projectCv = `Work Experience
+
+Product Strategy Intern | Trulioo
+Jan 2024 - Aug 2024
+Analysed product metrics and funnel performance.
+Led projects across three teams.
+
+Projects
+
+Career Experiment
+Built a working app prototype with Kiro against a live client brief.
+`;
+
+test("a projects section is not absorbed into the job above it", () => {
+  const experiences = extractCv(projectCv);
+  const trulioo = experiences.find((experience) => experience.organisation === "Trulioo");
+  assert.ok(trulioo, "the job is still detected");
+  const labels = trulioo.activities.map((activity) => activity.label).join(" | ");
+  assert.doesNotMatch(labels, /Kiro/, "project work is never attributed to an unrelated employer");
+});
+
+test("a project titled by name alone becomes its own experience", () => {
+  const project = extractCv(projectCv).find((experience) => experience.title === "Career Experiment");
+  assert.ok(project, "a project entry needs no employer and no role word");
+  assert.equal(project.type, "project");
+  // The label is now canonical ("Prototyping and building"), so provenance is
+  // checked where it lives: the original CV wording, which is never discarded.
+  assert.ok(project.activities.length > 0);
+  assert.match(project.activities.map((activity) => activity.supportingText).join(" "), /Kiro/);
+});
+
+test("a short bullet mentioning projects or leadership is kept, not read as a heading", () => {
+  const trulioo = extractCv(projectCv).find((experience) => experience.organisation === "Trulioo");
+  assert.match(
+    trulioo.activities.map((activity) => activity.label).join(" | "),
+    /Led projects across three teams/,
+    "an unanchored section pattern used to delete these lines outright",
+  );
+});
+
+test("a repeated section heading still does not split a role from its bullets", () => {
+  const experiences = extractCv(`Work Experience
+
+Consultant | Decision Lab
+Designed qualitative research.
+Synthesised findings for clients.
+
+Work Experience
+
+Analyst | Acme
+Analysed customer data.
+`);
+  assert.equal(experiences.length, 2);
+  const consultant = experiences.find((experience) => experience.organisation === "Decision Lab");
+  assert.ok(consultant.activities.length >= 2, "bullets continuing after a page break stay with their role");
+});
+
+test("a separation inferred from silence never outranks one both careers state", () => {
+  for (const careers of [["ux-researcher", "service-designer"], ["data-scientist", "business-analyst"], ["product-manager", "management-consultant"]]) {
+    const ranked = rankUnknownsBySeparation({ careers, confirmedActivityIds: [] });
+    assert.ok(ranked[0].bothStated, `${careers.join(" vs ")} must lead with a rating both careers actually state`);
+    const firstAssumed = ranked.findIndex((unknown) => !unknown.bothStated);
+    const lastStated = ranked.map((unknown) => unknown.bothStated).lastIndexOf(true);
+    if (firstAssumed >= 0) assert.ok(firstAssumed > lastStated, "stated ratings all come before assumed ones");
+  }
+});
+
+test("an unmapped activity is recorded as assumed, not as a real difference", () => {
+  // The demonstrated pair is now fully rated, so an under-authored pair is
+  // needed to exercise this at all.
+  const ranked = rankUnknownsBySeparation({ careers: ["service-designer", "policy-analyst"], confirmedActivityIds: [] });
+  const assumed = ranked.filter((unknown) => !unknown.bothStated);
+  assert.ok(assumed.length > 0, "the career models are only partly authored, so some pairs are unstated");
+  assert.ok(assumed.every((unknown) => typeof unknown.separation === "number"));
+});
+
+test("the demonstrated pair is rated in both directions, so nothing is assumed", () => {
+  const { careerModels } = loadTypeScriptModule("data/careers.ts");
+  const pm = careerModels.find((career) => career.id === "product-manager");
+  const mc = careerModels.find((career) => career.id === "management-consultant");
+  const pmIds = new Set(pm.activities.map((activity) => activity.id));
+  const mcIds = new Set(mc.activities.map((activity) => activity.id));
+
+  const central = (model) => model.activities.filter((a) => a.importance === "Core" || a.importance === "Important");
+  assert.deepEqual(central(pm).filter((a) => !mcIds.has(a.id)).map((a) => a.id), [],
+    "work central to a Product Manager must carry an explicit Management Consultant rating");
+  assert.deepEqual(central(mc).filter((a) => !pmIds.has(a.id)).map((a) => a.id), [],
+    "and the reverse");
+
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  assert.ok(ranked.slice(0, 5).every((unknown) => unknown.bothStated),
+    "so the top recommendations rest on stated ratings, not on silence");
+});
+
+const cvWithTrailingSections = `Work Experience
+
+Product Strategy Intern | Trulioo
+Analysed product metrics and funnel performance.
+
+Projects
+
+Career Experiment
+Built a working app prototype with Kiro.
+
+ADDITIONAL
+
+Technical: Python, SQL, Tableau
+Languages: English, Vietnamese
+`;
+
+test("a projects section does not swallow the sections that follow it", () => {
+  const titles = extractCv(cvWithTrailingSections).map((experience) => experience.title);
+  assert.deepEqual(titles, ["Product Strategy Intern", "Career Experiment"]);
+  for (const phantom of ["ADDITIONAL", "Technical: Python, SQL, Tableau", "Languages: English, Vietnamese"]) {
+    assert.ok(!titles.includes(phantom), `"${phantom}" is a heading or a list, not an experience`);
+  }
+});
+
+test("common closing CV headings end the section they follow", () => {
+  for (const heading of ["ADDITIONAL", "Additional Information", "Additional Skills", "Technical Skills", "Skills", "References"]) {
+    const experiences = extractCv(`Projects\n\nCareer Experiment\nBuilt a working app prototype with Kiro.\n\n${heading}\n\nPython, SQL, Tableau\n`);
+    assert.deepEqual(experiences.map((experience) => experience.title), ["Career Experiment"], `"${heading}" must not become an experience`);
+  }
+});
+
+test("an experience with no activities is dropped rather than shown as empty", () => {
+  const experiences = extractCv(`Work Experience
+
+Product Strategy Intern | Trulioo
+Analysed product metrics and funnel performance.
+
+Research Assistant | Some Lab
+`);
+  const titles = experiences.map((experience) => experience.title);
+  assert.ok(titles.includes("Product Strategy Intern"));
+  assert.ok(!titles.includes("Research Assistant"), "an experience carrying no evidence asks the user to confirm nothing");
+});
+
+test("one achievement breaks into the activities it actually contains", () => {
+  const experiences = extractCv(`Projects
+
+Career Experiment
+Built a working app prototype with Kiro (AI-assisted development) against a live Mandai Wildlife Group brief, scoping a business problem into a demo-ready build in one day.
+`);
+  const activities = experiences.flatMap((experience) => experience.activities);
+  const ids = activities.map((activity) => activity.canonicalId);
+  assert.ok(ids.includes("prototyping-building"), "building the thing");
+  assert.ok(ids.includes("scoping-under-constraint"), "cutting the problem down to one day");
+  assert.ok(ids.includes("client-brief-work"), "working to a live client brief");
+
+  // Once the catalogue understands a sentence it must stop appearing as an
+  // unclassified leftover.
+  assert.ok(!activities.some((activity) => activity.category === "Other"),
+    "the raw sentence should no longer land in Other");
+  for (const activity of activities) assert.notEqual(activity.category, "Other");
+});
+
+test("build patterns do not fire on unrelated achievements", () => {
+  for (const sentence of [
+    "Built a financial model for the client engagement.",
+    "Built a report on product performance.",
+    "Managed stakeholder relationships across three teams.",
+  ]) {
+    const ids = extractCv(`Work Experience\n\nAnalyst | Example\n${sentence}\n`)
+      .flatMap((experience) => experience.activities)
+      .map((activity) => activity.canonicalId);
+    assert.ok(!ids.includes("prototyping-building"), `should not read as building: ${sentence}`);
+  }
+});
+
+test("the direction says what the work is and how to try it, not just its name", () => {
+  const ranked = rankUnknownsBySeparation({ careers: ["product-manager", "management-consultant"], confirmedActivityIds: [] });
+  const top = ranked[0];
+  assert.ok(top.description && top.description.length > 20, "an activity name alone does not tell the user what it means");
+  assert.ok(top.howToTry && top.howToTry.length > 20, "and a direction with no action is not concrete");
+
+  const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  assert.match(screen, /direction-meaning/);
+  assert.match(screen, /One way to try it/);
+});
+
+test("suggestions are things a student could arrange without connections", () => {
+  const { activityCatalog } = loadTypeScriptModule("data/activityCatalog.ts");
+  const withHow = activityCatalog.filter((activity) => activity.howToTry);
+  assert.ok(withHow.length >= 15, "the activities likely to be recommended carry a suggestion");
+  for (const activity of withHow) {
+    assert.doesNotMatch(activity.howToTry, /internship|apply for a job|get hired|full-time/i,
+      `"${activity.label}" suggests something the user probably cannot arrange`);
+  }
+});
+
+test("activity reflection covers one role at a time, straight after its trial", () => {
+  const screen = readFileSync(resolve(root, "components/screens/CareerExperimentScreenV2.tsx"), "utf8");
+  // The reflection reads one role's activities, not both roles flattened.
+  assert.match(screen, /const activities = roleTrials\[role\]\.activities;/);
+  assert.doesNotMatch(screen, /getTaskSequence\(state\.mode, state\.selectedCareers\)\.flatMap\(\(role\) => roleTrials\[role\]\.activities\)/);
+  // And completing a role routes into reflection before the next primer.
+  assert.match(screen, /moveTo\("activity-reflection", \{ completedCareerTasks: completed, activeRole: role \}\)/);
+  assert.match(screen, /Continue to the next role/);
 });

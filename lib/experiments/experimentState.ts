@@ -15,6 +15,7 @@ export function createInitialExperimentState(careers: CareerId[]): CareerExperim
     completedCareerTasks: [],
     roleTrials: Object.fromEntries(careers.map((career) => [career, createRoleTrialState(career)])),
     activityReflections: {},
+    contradictionCauses: {},
     comparisonReflection: "",
     completedScenarioIds: [],
   };

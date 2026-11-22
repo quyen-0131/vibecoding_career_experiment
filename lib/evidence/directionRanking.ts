@@ -1,0 +1,175 @@
+import { getActivityDefinition, type ActivityCategory } from "@/data/activityCatalog";
+import { getCareerActivity, getCareerModel, type CareerId, type CareerImportance } from "@/data/careers";
+import type { ContradictionCause } from "@/types/experiment";
+import type { PreferenceFinding } from "@/lib/evidence/preferenceShift";
+
+/**
+ * The Direction: the single most useful thing to explore next.
+ *
+ * Ranked by how much exploring an Unknown would distinguish the two Career
+ * Options, per docs/adr/0003-rank-by-what-separates-the-options.md. An Unknown
+ * both careers treat the same way teaches the User nothing about the choice in
+ * front of them, however curious they are about it.
+ *
+ * Nothing here reads experiment performance (ADR 0002).
+ */
+
+const importanceRank: Record<CareerImportance, number> = { Core: 3, Important: 2, Supporting: 1, Limited: 0 };
+
+export type RankedUnknown = {
+  activityId: string;
+  label: string;
+  category?: ActivityCategory;
+  /** 0-3. How differently the two Career Options treat this work. */
+  separation: number;
+  importanceByCareer: Partial<Record<CareerId, CareerImportance>>;
+  /** The Career Option that rates it higher. Absent when they agree. */
+  leansToward?: CareerId;
+  /**
+   * Whether both careers actually state a rating for this activity. A career
+   * model that simply omits an activity reads as "Limited", so an unstated
+   * pair can look maximally separated when we just do not know. Only 20% of
+   * the career x activity grid is authored, so this matters most for the
+   * careers that are mapped least.
+   */
+  /** What this work actually is, in the leaning career's own terms. */
+  description?: string;
+  /** A concrete way to try it, so the Direction names an action not a phrase. */
+  howToTry?: string;
+  bothStated: boolean;
+};
+
+export type RankUnknownsInput = {
+  careers: CareerId[];
+  /** Canonical ids of activities the User has Confirmed Evidence for. */
+  confirmedActivityIds: string[];
+};
+
+export function rankUnknownsBySeparation({ careers, confirmedActivityIds }: RankUnknownsInput): RankedUnknown[] {
+  const [careerA, careerB] = careers;
+  if (!careerA || !careerB) return [];
+
+  const confirmed = new Set(confirmedActivityIds);
+  const candidateIds = new Set(
+    [careerA, careerB]
+      .flatMap((careerId) => getCareerModel(careerId)?.activities ?? [])
+      .filter((activity) => activity.importance === "Core" || activity.importance === "Important")
+      .map((activity) => activity.id)
+      .filter((activityId) => !confirmed.has(activityId)),
+  );
+
+  const ranked = [...candidateIds].map((activityId) => {
+    const statedA = getCareerModel(careerA)?.activities.some((activity) => activity.id === activityId) ?? false;
+    const statedB = getCareerModel(careerB)?.activities.some((activity) => activity.id === activityId) ?? false;
+    const inA = getCareerActivity(careerA, activityId).importance;
+    const inB = getCareerActivity(careerB, activityId).importance;
+    const separation = Math.abs(importanceRank[inA] - importanceRank[inB]);
+    const definition = getActivityDefinition(activityId);
+    return {
+      activityId,
+      label: definition?.label ?? getCareerActivity(careerA, activityId).label,
+      category: definition?.category,
+      separation,
+      importanceByCareer: { [careerA]: inA, [careerB]: inB } as Partial<Record<CareerId, CareerImportance>>,
+      leansToward: separation === 0 ? undefined : importanceRank[inA] > importanceRank[inB] ? careerA : careerB,
+      description: getCareerActivity(importanceRank[inA] >= importanceRank[inB] ? careerA : careerB, activityId).description,
+      howToTry: definition?.howToTry,
+      bothStated: statedA && statedB,
+    };
+  });
+
+  // Separation first. Then how much is at stake for the career that cares more
+  // about it. Then label, so the order is stable rather than incidental.
+  //
+  // ADR 0003 breaks ties by what a User can realistically arrange next term.
+  // The career models carry no accessibility data yet, so that tie-break is
+  // not applied; add a field per activity to enable it.
+  return ranked.sort((a, b) => {
+    // A separation we can actually vouch for beats one inferred from silence.
+    if (a.bothStated !== b.bothStated) return a.bothStated ? -1 : 1;
+    if (b.separation !== a.separation) return b.separation - a.separation;
+    const stake = (unknown: RankedUnknown) => Math.max(...Object.values(unknown.importanceByCareer).map((importance) => importanceRank[importance!]));
+    if (stake(b) !== stake(a)) return stake(b) - stake(a);
+    return a.label.localeCompare(b.label);
+  });
+}
+
+export type Direction =
+  /** A Contradiction the User attributed to the task, not the work. Unresolved. */
+  | { kind: "retest"; category: string; reason: string }
+  | { kind: "explore"; unknown: RankedUnknown }
+  | { kind: "nothing-left"; reason: string };
+
+/**
+ * A Contradiction blamed on the particular task left the question open, so
+ * retesting it beats exploring something new. A Contradiction blamed on the
+ * work itself is settled and needs no retest.
+ * See docs/adr/0005-contradictions-are-questioned-not-resolved.md.
+ */
+export function buildDirection({
+  rankedUnknowns,
+  findings,
+  contradictionCauses,
+}: {
+  rankedUnknowns: RankedUnknown[];
+  findings: PreferenceFinding[];
+  contradictionCauses: Partial<Record<string, ContradictionCause>>;
+}): Direction {
+  const unresolvedContradiction = findings.find(
+    (finding) => finding.kind === "shift" && finding.isContradiction && contradictionCauses[finding.category] === "this-task",
+  );
+  if (unresolvedContradiction) {
+    return {
+      kind: "retest",
+      category: unresolvedContradiction.category,
+      reason: "You put this down to the particular task rather than the work itself, so the question is still open.",
+    };
+  }
+
+  // Never send a User back toward work they have just done and wanted less
+  // of. Where an experiment gave them an informed preference for an Activity
+  // Group, only a "more" keeps that group eligible; anything else falls
+  // through to the next candidate. Preference gates the direction;
+  // performance never does (ADR 0002).
+  const informedByCategory = new Map<string, string>();
+  for (const finding of findings) {
+    if (finding.kind === "shift" || finding.kind === "first-evidence") informedByCategory.set(finding.category, finding.informed);
+  }
+  const eligible = rankedUnknowns.filter((unknown) => {
+    const informed = unknown.category ? informedByCategory.get(unknown.category) : undefined;
+    return informed === undefined || informed === "more";
+  });
+
+  const [top] = eligible;
+  if (!top) return { kind: "nothing-left", reason: "Your evidence already covers the important work in both careers." };
+  return { kind: "explore", unknown: top };
+}
+
+/**
+ * The same separation ordering, returning full CareerActivity objects so the
+ * evidence map and the phase-3 question list can rank rather than truncate in
+ * declaration order. Without this the three screens disagree about which
+ * untested work matters; see docs/known-issues.md.
+ */
+export function rankCareerGaps(
+  careerId: CareerId,
+  comparedWith: CareerId,
+  existingCanonicalIds: string[],
+  limit = 5,
+) {
+  const career = getCareerModel(careerId);
+  if (!career) return [];
+  const existing = new Set(existingCanonicalIds);
+  return career.activities
+    .filter((activity) => (activity.importance === "Core" || activity.importance === "Important") && !existing.has(activity.id))
+    .map((activity) => ({
+      activity,
+      separation: Math.abs(importanceRank[activity.importance] - importanceRank[getCareerActivity(comparedWith, activity.id).importance]),
+    }))
+    .sort((a, b) =>
+      b.separation - a.separation ||
+      importanceRank[b.activity.importance] - importanceRank[a.activity.importance] ||
+      a.activity.label.localeCompare(b.activity.label))
+    .slice(0, limit)
+    .map(({ activity }) => activity);
+}

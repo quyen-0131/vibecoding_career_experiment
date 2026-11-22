@@ -19,6 +19,11 @@ import {
 import { getCareerModel, type CareerId } from "@/data/careers";
 import { evaluateInitialAttempt, evaluateRevision } from "@/lib/experiments/evaluateExperiment";
 import { interpretComparisonReflection } from "@/lib/experiments/interpretReflection";
+import { computePreferenceFindings, selectHeadlineFinding, type PreferenceFinding } from "@/lib/evidence/preferenceShift";
+import type { ContradictionCause } from "@/types/experiment";
+import { buildDirection, rankUnknownsBySeparation } from "@/lib/evidence/directionRanking";
+import { findCoreTensions, type CoreTension } from "@/lib/evidence/coreTension";
+import type { ActivityEvidenceResponse, NormalizedActivity } from "@/types/prototype";
 import {
   createInitialExperimentState,
   createNextScenarioState,
@@ -41,7 +46,6 @@ import type {
   RoleTrialState,
   WorkReaction,
 } from "@/types/experiment";
-import type { ActivityEvidenceResponse, NormalizedActivity } from "@/types/prototype";
 
 const preferenceOptions = ["more", "same", "less", "need_more_experience"] as const;
 const activityOptions = ["more", "same", "less", "not_sure"] as const;
@@ -444,10 +448,13 @@ function RoleReactionScreen({ role, trial, onPreference, onToggleReaction, onEvi
   );
 }
 
-function ActivityReflectionScreen({ state, onChange, onBack, onContinue }: { state: CareerExperimentState; onChange: (id: string, value: ActivityReaction) => void; onBack: () => void; onContinue: () => void }) {
-  const activities = getTaskSequence(state.mode, state.selectedCareers).flatMap((role) => roleTrials[role].activities);
+function ActivityReflectionScreen({ state, role, isLastRole, onChange, onBack, onContinue }: { state: CareerExperimentState; role: CareerTaskId; isLastRole: boolean; onChange: (id: string, value: ActivityReaction) => void; onBack: () => void; onContinue: () => void }) {
+  // One role at a time, immediately after its trial: rating product work from
+  // memory after a consulting exercise produces worse evidence than rating it
+  // while the work is still fresh.
+  const activities = roleTrials[role].activities;
   const answered = activities.every((activity) => state.activityReflections[activity.id]);
-  return <section className="screen wide-screen experiment-screen"><StageMeta stage="activity-reflection" /><div className="eyebrow">Career → activities → evidence</div><h1>Which kinds of work would you want more or less of?</h1><p className="lead compact">React to the activities, not the career titles. Preference and performance remain separate.</p><div className="activity-reflection-list">{activities.map((activity) => <article key={activity.id}><span>{roleTrials[activity.role].roleTitle}</span><strong>{activity.label}</strong><ChoiceGroup label="Future preference" options={activityOptions} labels={activityReactionLabels} value={state.activityReflections[activity.id]} onChange={(value: ActivityReaction) => onChange(activity.id, value)} /></article>)}</div><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!answered} onClick={onContinue}>Compare the work <span aria-hidden="true">→</span></button></div></section>;
+  return <section className="screen wide-screen experiment-screen"><StageMeta stage="activity-reflection" /><div className="eyebrow">{roleTrials[role].roleTitle} · the work you just did</div><h1>Which parts of this work would you want more or less of?</h1><p className="lead compact">These are the elements of the {roleTrials[role].roleTitle} task you have just completed. React to the work itself, not the job title. Preference and performance remain separate.</p><div className="activity-reflection-list">{activities.map((activity) => <article key={activity.id}><span>{activity.category}</span><strong>{activity.label}</strong><ChoiceGroup label="Future preference" options={activityOptions} labels={activityReactionLabels} value={state.activityReflections[activity.id]} onChange={(value: ActivityReaction) => onChange(activity.id, value)} /></article>)}</div><div className="actions"><button className="button ghost" type="button" onClick={onBack}>Back</button><button className="button primary" type="button" disabled={!answered} onClick={onContinue}>{isLastRole ? "Compare the work" : "Continue to the next role"} <span aria-hidden="true">→</span></button></div></section>;
 }
 
 function ComparisonReflectionScreen({ state, onChange, onBack, onContinue }: { state: CareerExperimentState; onChange: (patch: Partial<CareerExperimentState>) => void; onBack: () => void; onContinue: () => void }) {
@@ -511,23 +518,186 @@ function buildDirectionalSignal(state: CareerExperimentState, testedRoles: Caree
     explanation: "Your repeat choice, task preference and activity reactions were mixed or similar. That is useful evidence: this exercise does not justify forcing a direction.",
   };
 
+  // The observation leads and the career name appears inside it as something
+  // the User said, not as a verdict we reached. See ADR 0001.
   return {
-    heading: `In this experiment, the preference signal leaned toward ${roleTrials[leaningRole].roleTitle}`,
-    explanation: `${reason} This is a direction from one supported exercise, not a conclusion about the whole career.`,
+    heading: reason,
+    explanation: "That is one preference, from one exercise, on one day. It is evidence about the work you just did - not a conclusion about which career suits you.",
   };
+}
+
+// Two forms: one before a noun ("more analysis work"), one standing alone
+// after a pronoun ("you wanted more of it").
+const preferenceWord = { more: "more", same: "about the same amount of", less: "less" } as const;
+const preferenceWordAlone = { more: "more of it", same: "about the same amount of it", less: "less of it" } as const;
+
+function describeFinding(finding: PreferenceFinding) {
+  const work = `${finding.category.toLowerCase()} work`;
+  if (finding.kind === "shift" && finding.direction === "confirmed") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you still did.`;
+  if (finding.kind === "shift") return `Before trying it you wanted ${preferenceWord[finding.imagined]} ${work}. After doing it, you wanted ${preferenceWordAlone[finding.informed]}.`;
+  if (finding.kind === "first-evidence") return `You had no ${work} in your evidence. Having now done some, you want ${preferenceWordAlone[finding.informed]}.`;
+  if (finding.kind === "unresolved") return `You did ${work} and still need more experience before judging it. That is a real answer, not a gap.`;
+  return `Your reactions to ${work} differed across tasks, so we are not summarising them as one preference.`;
+}
+
+const contradictionCauseOptions = ["kind-of-work", "this-task"] as const;
+const contradictionCauseLabels = {
+  "kind-of-work": "This kind of work",
+  "this-task": "Something about this particular task",
+};
+
+function CoreTensionSection({ tensions }: { tensions: CoreTension[] }) {
+  if (tensions.length === 0) return null;
+  return (
+    <section className="cross-career-synthesis core-tension">
+      <span>Worth noticing</span>
+      {tensions.map((tension) => (
+        <div className="core-tension-note" key={`${tension.careerId}-${tension.category}`}>
+          <h2>
+            {tension.category} work is core to a {tension.careerTitle}, and after doing it you wanted less of it.
+          </h2>
+          <p>
+            For a {tension.careerTitle} this includes {tension.coreActivityLabels.join(", ").toLowerCase()}.
+            Core work is the part of a job you cannot avoid by picking a different team or employer.
+          </p>
+        </div>
+      ))}
+      <small>
+        Not wanting one kind of work does not settle whether the career suits you, and we are not
+        counting these up. It is one thing worth weighing yourself.
+      </small>
+    </section>
+  );
+}
+
+function DirectionSection({
+  direction,
+  careers,
+}: {
+  direction: ReturnType<typeof buildDirection>;
+  careers: CareerId[];
+}) {
+  if (direction.kind === "nothing-left") {
+    return (
+      <section className="cross-career-synthesis direction-next">
+        <span>What to explore next</span>
+        <h2>{direction.reason}</h2>
+      </section>
+    );
+  }
+
+  if (direction.kind === "retest") {
+    return (
+      <section className="cross-career-synthesis direction-next">
+        <span>What to explore next</span>
+        <h2>Try {direction.category.toLowerCase()} work again, in a different setting.</h2>
+        <p>{direction.reason}</p>
+      </section>
+    );
+  }
+
+  const { unknown } = direction;
+  const leaning = unknown.leansToward ? getCareerModel(unknown.leansToward)?.title : undefined;
+  const other = careers.find((career) => career !== unknown.leansToward);
+  const otherTitle = other ? getCareerModel(other)?.title : undefined;
+
+  return (
+    <section className="cross-career-synthesis direction-next">
+      <span>What to explore next</span>
+      <h2>Get some experience of {unknown.label.toLowerCase()}.</h2>
+      {unknown.description && <p className="direction-meaning">{unknown.description}</p>}
+      {unknown.howToTry && (
+        <p className="direction-how">
+          <strong>One way to try it:</strong> {unknown.howToTry}
+        </p>
+      )}
+      {leaning && otherTitle && (
+        <p>
+          It is {unknown.importanceByCareer[unknown.leansToward!]?.toLowerCase()} work for a {leaning} and
+          much less central for a {otherTitle}, and you have no evidence of it yet. Whatever you find
+          out, you learn something about the choice itself &mdash; which is why it comes before work you
+          are simply curious about.
+        </p>
+      )}
+      <p className="direction-caveat">
+        This is a suggestion about what to try next, not a recommendation to become a {leaning ?? "particular role"}.
+      </p>
+    </section>
+  );
+}
+
+function PreferenceShiftSection({
+
+  findings,
+  contradictionCauses,
+  onContradictionCause,
+}: {
+  findings: PreferenceFinding[];
+  contradictionCauses: Partial<Record<string, ContradictionCause>>;
+  onContradictionCause: (category: string, cause: ContradictionCause) => void;
+}) {
+  const headline = selectHeadlineFinding(findings);
+  if (!headline) return null;
+  const isContradiction = headline.kind === "shift" && headline.isContradiction;
+  const cause = contradictionCauses[headline.category];
+  return (
+    <section className="cross-career-synthesis preference-shift">
+      <span>What changed when you did the work</span>
+      <h2>{describeFinding(headline)}</h2>
+      {isContradiction && (
+        <p>This is the most useful thing you learned today. Recall and experience disagreed &mdash; which does not mean your earlier answer was wrong, only that doing the work told you something reading about it could not.</p>
+      )}
+      {isContradiction && (
+        <div className="contradiction-question">
+          <ChoiceGroup
+            label="Which was it?"
+            options={contradictionCauseOptions}
+            labels={contradictionCauseLabels}
+            value={cause}
+            onChange={(next: ContradictionCause) => onContradictionCause(headline.category, next)}
+          />
+          {cause === "kind-of-work" && <p>Recorded as evidence about the work itself.</p>}
+          {cause === "this-task" && <p>Recorded as evidence about this task, not about the work. A different case may feel different.</p>}
+        </div>
+      )}
+      {headline.kind === "first-evidence" && (
+        <p>This is the first firsthand evidence you have about this kind of work. There was no earlier answer to compare it against.</p>
+      )}
+      {findings.length > 1 && (
+        <ul>{findings.filter((finding) => finding !== headline).map((finding) => <li key={finding.category}><strong>{finding.category}</strong> &mdash; {describeFinding(finding)}</li>)}</ul>
+      )}
+      <small>This compares what you predicted in your evidence review with how the work actually felt. It does not use your rubric performance.</small>
+    </section>
+  );
 }
 
 function SummaryScreen({
   state,
+  normalizedActivities,
+  evidenceResponses,
+  onContradictionCause,
   onTryAnotherCase,
   onSeeClosingSummary,
 }: {
   state: CareerExperimentState;
+  normalizedActivities: NormalizedActivity[];
+  evidenceResponses: Record<string, ActivityEvidenceResponse>;
+  onContradictionCause: (category: string, cause: ContradictionCause) => void;
   onTryAnotherCase: () => void;
   onSeeClosingSummary: () => void;
 }) {
   const testedRoles = getTaskSequence(state.mode, state.selectedCareers);
   const directionalSignal = buildDirectionalSignal(state, testedRoles);
+  const rankedUnknowns = rankUnknownsBySeparation({
+    careers: state.selectedCareers,
+    confirmedActivityIds: normalizedActivities.map((activity) => activity.canonicalId),
+  });
+  const preferenceFindings = computePreferenceFindings({
+    normalizedActivities,
+    evidenceResponses,
+    experimentActivities: testedRoles.flatMap((role) => roleTrials[role].activities),
+    activityReflections: state.activityReflections,
+  });
   const reflection = interpretComparisonReflection(
     state.comparisonReflection,
     state.selectedCareers,
@@ -558,13 +728,18 @@ function SummaryScreen({
           />
         ))}
       </div>
+      <PreferenceShiftSection
+        findings={preferenceFindings}
+        contradictionCauses={state.contradictionCauses}
+        onContradictionCause={onContradictionCause}
+      />
       <section className="directional-signal">
-        <span>What your preference evidence points to</span>
+        <span>What you said during the experiment</span>
         <h2>{directionalSignal.heading}</h2>
         <p>{directionalSignal.explanation}</p>
         <small>
-          This direction uses your repeat-task choice, post-support preference
-          and activity reactions. Rubric performance remains separate above.
+          This summarises your repeat-task choice, post-support preference and
+          activity reactions. Rubric performance remains separate above.
         </small>
       </section>
       {reflection && (
@@ -574,6 +749,13 @@ function SummaryScreen({
           <p><strong>Next step:</strong> {reflection.nextQuestion}</p>
         </section>
       )}
+      <CoreTensionSection
+        tensions={findCoreTensions({ careers: state.selectedCareers, findings: preferenceFindings, contradictionCauses: state.contradictionCauses })}
+      />
+      <DirectionSection
+        direction={buildDirection({ rankedUnknowns, findings: preferenceFindings, contradictionCauses: state.contradictionCauses })}
+        careers={state.selectedCareers}
+      />
       <p className="experiment-verdict">
         This is not a career recommendation. A different case can add another
         piece of evidence, but it still will not represent sustained real work.
@@ -591,6 +773,8 @@ function SummaryScreen({
 }
 export function CareerExperimentScreen({
   careers,
+  normalizedActivities = [],
+  evidenceResponses = {},
   isGuidedDemo = false,
   startingActivities = [],
   startingResponses = {},
@@ -598,6 +782,9 @@ export function CareerExperimentScreen({
   onStartOver,
 }: {
   careers: CareerId[];
+  /** Phase 1 evidence, so Phase 3 reactions can be compared with Phase 2 preferences. */
+  normalizedActivities?: NormalizedActivity[];
+  evidenceResponses?: Record<string, ActivityEvidenceResponse>;
   isGuidedDemo?: boolean;
   startingActivities?: NormalizedActivity[];
   startingResponses?: Record<string, ActivityEvidenceResponse>;
@@ -727,16 +914,19 @@ export function CareerExperimentScreen({
       : [...state.completedCareerTasks, role];
     const next = getNextRole(state.mode, careers, completed);
     updateTrial(role, { completed: true });
+    // Reflect on this role's activities now, while the work is fresh, then
+    // move on to the next role or to the comparison.
+    if (state.mode === "comparison") {
+      moveTo("activity-reflection", { completedCareerTasks: completed, activeRole: role });
+      return;
+    }
     if (next) {
       moveTo(state.isDevelopmentPreview ? "revision-result" : "role-primer", {
         completedCareerTasks: completed,
         activeRole: next,
       });
     } else {
-      moveTo(state.mode === "comparison" ? "activity-reflection" : "summary", {
-        completedCareerTasks: completed,
-        activeRole: undefined,
-      });
+      moveTo("summary", { completedCareerTasks: completed, activeRole: undefined });
     }
   };
 
@@ -905,9 +1095,16 @@ export function CareerExperimentScreen({
     );
   }
   if (state.stage === "activity-reflection") {
+    const reflectingRole = state.activeRole ?? state.completedCareerTasks.at(-1);
+    if (!reflectingRole) return null;
+    const sequence = getTaskSequence(state.mode, state.selectedCareers);
+    const nextRole = getNextRole(state.mode, careers, state.completedCareerTasks);
+    const isLastRole = sequence.indexOf(reflectingRole) === sequence.length - 1 || !nextRole;
     return (
       <ActivityReflectionScreen
         state={state}
+        role={reflectingRole}
+        isLastRole={isLastRole}
         onChange={(id, value) =>
           setState((current) => ({
             ...current,
@@ -917,11 +1114,12 @@ export function CareerExperimentScreen({
             },
           }))
         }
-        onBack={() => {
-          const role = state.completedCareerTasks.at(-1);
-          if (role) moveTo("role-reaction", { activeRole: role });
-        }}
-        onContinue={() => moveTo("comparison-reflection")}
+        onBack={() => moveTo("role-reaction", { activeRole: reflectingRole })}
+        onContinue={() =>
+          isLastRole
+            ? moveTo("comparison-reflection", { activeRole: undefined })
+            : moveTo(state.isDevelopmentPreview ? "revision-result" : "role-primer", { activeRole: nextRole })
+        }
       />
     );
   }
@@ -952,6 +1150,11 @@ export function CareerExperimentScreen({
     <SummaryScreen
       state={state}
       onSeeClosingSummary={() => moveTo("closing-summary")}
+      normalizedActivities={normalizedActivities}
+      evidenceResponses={evidenceResponses}
+      onContradictionCause={(category, cause) =>
+        setState((current) => ({ ...current, contradictionCauses: { ...current.contradictionCauses, [category]: cause } }))
+      }
       onTryAnotherCase={() => {
         setState(createNextScenarioState(state));
         window.scrollTo({ top: 0, behavior: "smooth" });
